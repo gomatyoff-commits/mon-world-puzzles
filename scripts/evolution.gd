@@ -1,7 +1,10 @@
 extends Control
 
 var base_mon: MonsterData = null
+var selected_rec: Dictionary = {}
 var fodder: Array = []
+var evo_popup: Control = null
+
 var info_label: Label
 var mat_label: Label
 var grid: GridContainer
@@ -77,27 +80,25 @@ func _refresh() -> void:
 	if base_mon == null:
 		info_label.text = "Choisis un monstre à faire évoluer"
 		evolve_btn.disabled = true
+	elif selected_rec.is_empty():
+		info_label.text = "Choisis une évolution"
+		evolve_btn.disabled = true
 	else:
-		var rec := GameManager.get_evolution(base_mon)
-		if rec.is_empty():
-			info_label.text = "%s ne peut pas évoluer." % base_mon.mon_name
-			evolve_btn.disabled = true
-		else:
-			var err := GameManager.can_evolve(base_mon, fodder)
-			info_label.text = "%s → %s\nNv %d/%d · Sacrifices %d/%d · %s\n%s" % [
-				base_mon.mon_name, rec["to"],
-				base_mon.level, rec["min_level"],
-				fodder.size(), rec["fodder"],
-				GameManager.MATERIALS[rec["material"]],
-				("✅ Prêt !" if err == "" else "❌ " + err)]
-			evolve_btn.disabled = (err != "")
+		var err := GameManager.can_evolve(base_mon, selected_rec, fodder)
+		info_label.text = "%s → %s\nNv %d/%d · Sacrifices %d/%d · %s\n%s" % [
+			base_mon.mon_name, selected_rec["to"],
+			base_mon.level, selected_rec["min_level"],
+			fodder.size(), selected_rec["fodder"],
+			GameManager.MATERIALS[selected_rec["material"]],
+			("✅ Prêt !" if err == "" else "❌ " + err)]
+		evolve_btn.disabled = (err != "")
 
 func _make_card(mon: MonsterData) -> Control:
 	var is_base: bool = (mon == base_mon)
 	var is_fodder: bool = fodder.has(mon)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(180, 160)
+	panel.custom_minimum_size = Vector2(180, 170)
 	var st := StyleBoxFlat.new()
 	st.bg_color = Color(0.15, 0.15, 0.2)
 	st.set_corner_radius_all(10)
@@ -130,22 +131,84 @@ func _make_card(mon: MonsterData) -> Control:
 
 func _on_card(mon: MonsterData) -> void:
 	if base_mon == null:
-		base_mon = mon
+		# 1er clic : ouvre le menu de choix d'évolution
+		if GameManager.get_evolutions(mon).is_empty():
+			info_label.text = "%s ne peut pas évoluer." % mon.mon_name
+			return
+		_open_evo_popup(mon)
 	elif mon == base_mon:
+		# re-clic sur la base : désélectionne
 		base_mon = null
+		selected_rec = {}
 		fodder.clear()
-	elif fodder.has(mon):
-		fodder.erase(mon)
+		_refresh()
 	else:
-		fodder.append(mon)
+		# les autres cartes = sacrifices
+		if fodder.has(mon):
+			fodder.erase(mon)
+		else:
+			fodder.append(mon)
+		_refresh()
+
+# --- MENU DE CHOIX D'ÉVOLUTION (popup) ---
+func _open_evo_popup(mon: MonsterData) -> void:
+	var vp := get_viewport_rect().size
+
+	var overlay := ColorRect.new()
+	overlay.color = Color(0, 0, 0, 0.6)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+	evo_popup = overlay
+
+	var panel := PanelContainer.new()
+	panel.position = Vector2(vp.x * 0.1, vp.y * 0.2)
+	panel.custom_minimum_size = Vector2(vp.x * 0.8, 0)
+	overlay.add_child(panel)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 12)
+	panel.add_child(vb)
+
+	var t := Label.new()
+	t.text = "Évolutions de " + mon.mon_name
+	t.add_theme_font_size_override("font_size", 26)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(t)
+
+	for rec in GameManager.get_evolutions(mon):
+		var b := Button.new()
+		b.custom_minimum_size = Vector2(0, 64)
+		b.text = "→ %s   (Nv %d · %d slimes · %s)" % [
+			rec["to"], rec["min_level"], rec["fodder"], GameManager.MATERIALS[rec["material"]]]
+		b.pressed.connect(_choose_evo.bind(mon, rec))
+		vb.add_child(b)
+
+	var cancel := Button.new()
+	cancel.text = "Annuler"
+	cancel.custom_minimum_size = Vector2(0, 56)
+	cancel.pressed.connect(_close_popup)
+	vb.add_child(cancel)
+
+func _choose_evo(mon: MonsterData, rec: Dictionary) -> void:
+	base_mon = mon
+	selected_rec = rec
+	fodder.clear()
+	_close_popup()
 	_refresh()
 
+func _close_popup() -> void:
+	if evo_popup != null:
+		evo_popup.queue_free()
+		evo_popup = null
+
 func _do_evolve() -> void:
-	if base_mon == null:
+	if base_mon == null or selected_rec.is_empty():
 		return
-	var target: String = GameManager.get_evolution(base_mon).get("to", "")
-	if GameManager.evolve(base_mon, fodder):
+	var target: String = selected_rec.get("to", "")
+	if GameManager.evolve(base_mon, selected_rec, fodder):
 		info_label.text = "✨ Évolution réussie → %s !" % target
 		base_mon = null
+		selected_rec = {}
 		fodder.clear()
 		_refresh()

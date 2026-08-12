@@ -28,40 +28,27 @@ const MATERIALS := {
 # --- RECETTES D'ÉVOLUTION (clé = nom du monstre source) ---
 var evolutions := {
 	"Slime": [
-		{
-			"to": "Slime de Feu", "element": Elements.E.FIRE,
-			"min_level": 20, "fodder": 5, "material": "cristal_feu",
-			"base_hp": 200, "base_atk": 50, "rank": 1,
-			"tex": "res://assets/monster/SlimeDeFeu.png",
-		},
-		{
-			"to": "Slime d'Eau ", "element": Elements.E.WATER,
-			"min_level": 20, "fodder": 5, "material": "cristal_eau",
-			"base_hp": 200, "base_atk": 50, "rank": 1,
-			"tex": "res://assets/monster/SlimeDEau.png",
-		},
+		{ "to": "Slime de Feu",     "element": Elements.E.FIRE,  "min_level": 20, "fodder": 5, "material": "cristal_feu",     "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDeFeu.png" },
+		{ "to": "Slime d'Eau",      "element": Elements.E.WATER, "min_level": 20, "fodder": 5, "material": "cristal_eau",     "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDEau.png" },
+		{ "to": "Slime de Terre",   "element": Elements.E.EARTH, "min_level": 20, "fodder": 5, "material": "cristal_terre",   "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDeTerre.png" },
+		{ "to": "Slime de Vent",    "element": Elements.E.WIND,  "min_level": 20, "fodder": 5, "material": "cristal_vent",    "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDAir.png" },
+		{ "to": "Slime de Lumière", "element": Elements.E.LIGHT, "min_level": 20, "fodder": 5, "material": "cristal_lumiere", "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDeLumiere.png" },
+		{ "to": "Slime de Ténèbre", "element": Elements.E.DARK,  "min_level": 20, "fodder": 5, "material": "cristal_tenebre", "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDesTenebres.png" },
 	],
 }
 
 func _ready() -> void:
-	var first_launch := not FileAccess.file_exists(SAVE_PATH)
 	_build_collection()
 	_load()
 	if team.is_empty():
 		team = collection.slice(0, MAX_TEAM)
-	if first_launch:
-		materials = { "cristal_terre": 3, "cristal_feu": 1 }   # départ pour tester
 	team_hp = team_max_hp()
 
 func _build_collection() -> void:
 	collection = [
-		MonsterData.new("Slime",            Elements.E.NEUTRAL, 100, 10, 1, "res://assets/monster/Slime.png", 1, 0),
-		MonsterData.new("Slime de Feu",     Elements.E.FIRE,  200, 50, 1, "res://assets/monster/SlimeDeFeu.png", 1, 1),
-		MonsterData.new("Slime d'Eau",      Elements.E.WATER, 200, 50, 1, "res://assets/monster/SlimeDEau.png", 1, 1),
-		MonsterData.new("Slime de Terre",   Elements.E.EARTH, 220, 45, 1, "res://assets/monster/SlimeDeTerre.png", 1, 1),
-		MonsterData.new("Slime de Vent",    Elements.E.WIND,  180, 55, 1, "res://assets/monster/SlimeDAir.png", 1, 1),
-		MonsterData.new("Slime de Lumière", Elements.E.LIGHT, 200, 50, 1, "res://assets/monster/SlimeDeLumiere.png", 1, 1),
-		MonsterData.new("Slime de Ténèbre", Elements.E.DARK,  200, 50, 1, "res://assets/monster/SlimeDesTenebres.png", 1, 1),
+		MonsterData.new("Slime", Elements.E.NEUTRAL, 100, 10, 1, "res://assets/monster/Slime.png", 1, 0),
+		MonsterData.new("Slime", Elements.E.NEUTRAL, 100, 10, 1, "res://assets/monster/Slime.png", 1, 0),
+		MonsterData.new("Slime", Elements.E.NEUTRAL, 100, 10, 1, "res://assets/monster/Slime.png", 1, 0),
 	]
 
 # --- MODE HISTOIRE ---
@@ -118,22 +105,37 @@ func add_material(id: String, count := 1) -> void:
 # 1 chance sur 4 d'obtenir un Slime (générique -> évoluable)
 func try_drop_slime() -> MonsterData:
 	if randi() % 4 == 0:
-		var slime := MonsterData.new("Slime", Elements.E.NEUTRAL, 100, 10, 1, "res://assets/monster/Slime.png")
+		# On ne drop QUE des slimes de RANG 0 (les rang 1 s'obtiennent par évolution)
+		var slime := MonsterData.new("Slime", Elements.E.NEUTRAL, 100, 10, 1, "res://assets/monster/Slime.png", 1, 0)
 		collection.append(slime)
 		return slime
 	return null
 
-# Récompense complète de fin d'event : 1 cristal garanti + slime éventuel
+# Butin de fin d'event : chaque slime affronté a 1 chance sur 2 de lâcher un cristal aléatoire
 func event_loot() -> String:
+	# nombre de slimes affrontés = 1 + 2 + ... + total_waves
+	var nb_slimes := 0
+	for w in range(1, total_waves + 1):
+		nb_slimes += w
+
+	var crystal_counts := {}
+	for i in nb_slimes:
+		if randi() % 2 == 0:                                 # 1 chance sur 2
+			var crys: String = MATERIALS.keys()[randi() % MATERIALS.size()]   # cristal aléatoire
+			add_material(crys, 1)
+			crystal_counts[crys] = int(crystal_counts.get(crys, 0)) + 1
+
 	var parts: Array[String] = []
-	var crys: String = MATERIALS.keys()[randi() % MATERIALS.size()]
-	add_material(crys, 1)
-	parts.append("1x " + MATERIALS[crys])
+	for id in crystal_counts.keys():
+		parts.append("%dx %s" % [crystal_counts[id], MATERIALS[id]])
+
+	# 1 chance sur 4 d'obtenir aussi un Slime
 	var slime := try_drop_slime()
 	if slime != null:
 		parts.append(slime.mon_name)
+
 	save_game()
-	return "🎁 " + " + ".join(parts)
+	return "🎁 " + " + ".join(parts) if parts.size() > 0 else "Aucun butin cette fois..."
 
 # --- PV équipe ---
 func team_max_hp() -> int:
@@ -162,14 +164,13 @@ func fuse(base: MonsterData, fodder: Array) -> int:
 	return gained
 
 # --- ÉVOLUTION ---
-func get_evolution(mon: MonsterData) -> Dictionary:
-	var list: Array = evolutions.get(mon.mon_name, [])
-	return list[0] if list.size() > 0 else {}
+# Liste TOUTES les évolutions possibles d'un monstre
+func get_evolutions(mon: MonsterData) -> Array:
+	return evolutions.get(mon.mon_name, [])
 
-func can_evolve(mon: MonsterData, fodder: Array) -> String:
-	var rec := get_evolution(mon)
+func can_evolve(mon: MonsterData, rec: Dictionary, fodder: Array) -> String:
 	if rec.is_empty():
-		return "Ce monstre ne peut pas évoluer."
+		return "Choisis une évolution."
 	if mon.level < int(rec["min_level"]):
 		return "Niveau %d minimum requis." % rec["min_level"]
 	if fodder.size() != int(rec["fodder"]):
@@ -178,20 +179,19 @@ func can_evolve(mon: MonsterData, fodder: Array) -> String:
 		return "Manque : " + MATERIALS[rec["material"]]
 	return ""
 
-func evolve(mon: MonsterData, fodder: Array) -> bool:
-	if can_evolve(mon, fodder) != "":
+func evolve(mon: MonsterData, rec: Dictionary, fodder: Array) -> bool:
+	if can_evolve(mon, rec, fodder) != "":
 		return false
-	var rec := get_evolution(mon)
 	for f in fodder:
 		if f == mon: continue
 		team.erase(f)
 		collection.erase(f)
 	materials[rec["material"]] = int(materials[rec["material"]]) - 1
 	mon.mon_name = rec["to"]
-	mon.rank = int(rec.get("rank", mon.rank + 1))
 	mon.element = int(rec["element"])
 	mon.base_hp = int(rec["base_hp"])
 	mon.base_atk = int(rec["base_atk"])
+	mon.rank = int(rec.get("rank", mon.rank + 1))
 	mon.texture_path = rec["tex"]
 	mon.texture = load(rec["tex"]) if rec["tex"] != "" else load("res://icon.svg")
 	mon.hp = mon.max_hp

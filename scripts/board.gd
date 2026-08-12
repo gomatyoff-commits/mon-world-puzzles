@@ -312,9 +312,15 @@ func resolve_matches() -> void:
 			print("Combo n°", combo_count, " : ", group.size(),
 				  " orbes ", Elements.NAMES[elem])
 			for m in GameManager.team:
-				if GameManager.team_hp > 0 and m.element == elem:
-					var raw: float = (1.0 + (nb - 3) * 0.25) * m.atk
+				if GameManager.team_hp <= 0:
+					continue
+				var raw: float = (1.0 + (nb - 3) * 0.25) * m.atk
+				if m.element == elem:
+					# match élémentaire -> profite de la table de faiblesse (x2 / x0.5)
 					dmg_by_element[elem] = dmg_by_element.get(elem, 0.0) + raw
+				elif m.element == Elements.E.NEUTRAL:
+					# NEUTRE : attaque avec N'IMPORTE quelle orbe (dégâts x1)
+					dmg_by_element[Elements.E.NEUTRAL] = dmg_by_element.get(Elements.E.NEUTRAL, 0.0) + raw
 
 		# on aplatit tous les groupes pour l'effacement
 		var all_cells: Array[Vector2i] = []
