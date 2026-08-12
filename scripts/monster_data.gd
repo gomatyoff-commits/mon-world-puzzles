@@ -14,9 +14,10 @@ var turn_counter: int
 var level: int = 1
 var xp: int = 0
 var hp: int = 0
+var rank: int = 0
 
 func _init(p_name: String, p_element: int, p_base_hp: int, p_base_atk: int,
-		   p_turns := 1, p_texture_path := "", p_level := 1) -> void:
+		   p_turns := 1, p_texture_path := "", p_level := 1, p_rank := 0) -> void:
 	mon_name = p_name
 	element = p_element
 	base_hp = p_base_hp
@@ -25,6 +26,7 @@ func _init(p_name: String, p_element: int, p_base_hp: int, p_base_atk: int,
 	texture_path = p_texture_path
 	texture = load(p_texture_path) if p_texture_path != "" else load("res://icon.svg")
 	level = p_level
+	rank = p_rank
 	hp = max_hp
 
 var max_hp: int:

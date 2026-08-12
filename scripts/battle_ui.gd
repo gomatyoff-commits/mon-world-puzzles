@@ -104,7 +104,6 @@ func _make_monster_widget(mon: MonsterData, img_size: int, hp_on_top: bool, with
 	img.custom_minimum_size = Vector2(img_size, img_size)
 	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	img.modulate = Elements.COLORS[mon.element]   # retire si vrais PNG couleur
 
 	var turn := Label.new()
 	turn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

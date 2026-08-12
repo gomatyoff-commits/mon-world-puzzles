@@ -378,8 +378,7 @@ func _end_player_turn() -> void:
 		var extra := ""
 		if GameManager.game_mode == "event":
 			GameManager.gain_team_xp(100)
-			var dropped = GameManager.try_drop_slime()
-			extra = ("🎁 Obtenu : " + dropped.mon_name + " !") if dropped != null else "Pas de slime cette fois..."
+			extra = GameManager.event_loot()
 		else:
 			var reward := GameManager.current_level * 200
 			GameManager.gain_team_xp(reward)

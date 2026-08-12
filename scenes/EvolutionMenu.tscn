@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://dsux3ivhiavcy"]
+
+[ext_resource type="Script" uid="uid://d3itn3b4wi23k" path="res://scripts/evolution.gd" id="1_hshx0"]
+
+[node name="EvolutionMenu" type="Node2D" unique_id=325251302]
+
+[node name="EvolutionMenu" type="Control" parent="." unique_id=1462434621]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_hshx0")

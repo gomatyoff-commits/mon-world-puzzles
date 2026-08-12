@@ -27,6 +27,7 @@ func _build_menu() -> void:
 	_add_mode(col, "🎉 Mode Event",    "res://scenes/EventMenu.tscn")
 	_add_mode(col, "⚔️ Édition d'équipe", "res://scenes/TeamEdit.tscn")
 	_add_mode(col, "⚗️ Alchimie",       "res://scenes/AlchemyMenu.tscn")
+	_add_mode(col, "🔮 Évolution",      "res://scenes/EvolutionMenu.tscn") 
 
 func _add_mode(col: VBoxContainer, label: String, scene_path: String) -> void:
 	var btn := Button.new()

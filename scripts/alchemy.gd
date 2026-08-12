@@ -96,7 +96,6 @@ func _make_card(mon: MonsterData) -> Control:
 	img.custom_minimum_size = Vector2(0, 90)
 	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	img.modulate = Elements.COLORS[mon.element]
 	vb.add_child(img)
 
 	var lbl := Label.new()
