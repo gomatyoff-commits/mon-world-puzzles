@@ -24,6 +24,24 @@ const NAMES := {
 	E.LIGHT: "Lumière", E.DARK: "Ténèbres", E.NEUTRAL: "Neutre"
 }
 
+# --- TEXTURES DES ORBES (chemins des images) ---
+const ORB_TEXTURES := {
+	E.FIRE:  "res://assets/orbs/OrbeDeFeu.png",
+	E.WATER: "res://assets/orbs/OrbeDEau.png",
+	E.EARTH: "res://assets/orbs/OrbeDeTerre.png",
+	E.WIND:  "res://assets/orbs/OrbeDeVent.png",
+	E.LIGHT: "res://assets/orbs/OrbeDeLumiere.png",
+	E.DARK:  "res://assets/orbs/OrbeDeTenebre.png",
+}
+
+var _orb_tex_cache := {}
+
+func orb_texture(element: int) -> Texture2D:
+	if not _orb_tex_cache.has(element):
+		var path: String = ORB_TEXTURES.get(element, "")
+		_orb_tex_cache[element] = load(path) if path != "" else null
+	return _orb_tex_cache[element]
+
 # --- TABLE DE FAIBLESSE / RÉSISTANCE ---
 # Cycle : Feu -> Terre -> Eau -> Vent -> Feu
 # Miroir : Lumière <-> Ténèbres
