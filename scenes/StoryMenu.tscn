@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://dp5oionaq1bsr"]
+
+[ext_resource type="Script" uid="uid://dmmvkhx7e734s" path="res://scripts/story_menu.gd" id="1_gavik"]
+
+[node name="StoryMenu" type="Node2D" unique_id=616581534]
+
+[node name="Control" type="Control" parent="." unique_id=716827044]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_gavik")

@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://dtsfqgm12qpos"]
+
+[ext_resource type="Script" uid="uid://bwlqmbgg8l3nu" path="res://scripts/alchemy.gd" id="1_mbi4h"]
+
+[node name="AlchemyMenu" type="Node2D" unique_id=545642998]
+
+[node name="AlchemyMenu" type="Control" parent="." unique_id=130985128]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mbi4h")
