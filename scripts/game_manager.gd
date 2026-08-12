@@ -28,12 +28,12 @@ const MATERIALS := {
 # --- RECETTES D'ÉVOLUTION (clé = nom du monstre source) ---
 var evolutions := {
 	"Slime": [
-		{ "to": "Slime de Feu",     "element": Elements.E.FIRE,  "min_level": 20, "fodder": 5, "material": "cristal_feu",     "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDeFeu.png" },
-		{ "to": "Slime d'Eau",      "element": Elements.E.WATER, "min_level": 20, "fodder": 5, "material": "cristal_eau",     "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDEau.png" },
-		{ "to": "Slime de Terre",   "element": Elements.E.EARTH, "min_level": 20, "fodder": 5, "material": "cristal_terre",   "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDeTerre.png" },
-		{ "to": "Slime de Vent",    "element": Elements.E.WIND,  "min_level": 20, "fodder": 5, "material": "cristal_vent",    "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDAir.png" },
-		{ "to": "Slime de Lumière", "element": Elements.E.LIGHT, "min_level": 20, "fodder": 5, "material": "cristal_lumiere", "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDeLumiere.png" },
-		{ "to": "Slime de Ténèbre", "element": Elements.E.DARK,  "min_level": 20, "fodder": 5, "material": "cristal_tenebre", "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDesTenebres.png" },
+		{ "to": "Slime de Feu",     "element": Elements.E.FIRE,  "min_level": 10, "fodder": 2, "material": "cristal_feu",     "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDeFeu.png" },
+		{ "to": "Slime d'Eau",      "element": Elements.E.WATER, "min_level": 10, "fodder": 2, "material": "cristal_eau",     "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDEau.png" },
+		{ "to": "Slime de Terre",   "element": Elements.E.EARTH, "min_level": 10, "fodder": 2, "material": "cristal_terre",   "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDeTerre.png" },
+		{ "to": "Slime de Vent",    "element": Elements.E.WIND,  "min_level": 10, "fodder": 2, "material": "cristal_vent",    "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDAir.png" },
+		{ "to": "Slime de Lumière", "element": Elements.E.LIGHT, "min_level": 10, "fodder": 2, "material": "cristal_lumiere", "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDeLumiere.png" },
+		{ "to": "Slime de Ténèbre", "element": Elements.E.DARK,  "min_level": 10, "fodder": 2, "material": "cristal_tenebre", "base_hp": 200, "base_atk": 50, "rank": 1, "tex": "res://assets/monster/SlimeDesTenebres.png" },
 	],
 }
 
@@ -104,7 +104,7 @@ func add_material(id: String, count := 1) -> void:
 
 # 1 chance sur 4 d'obtenir un Slime (générique -> évoluable)
 func try_drop_slime() -> MonsterData:
-	if randi() % 4 == 0:
+	if randi() % 1 == 0:
 		# On ne drop QUE des slimes de RANG 0 (les rang 1 s'obtiennent par évolution)
 		var slime := MonsterData.new("Slime", Elements.E.NEUTRAL, 100, 10, 1, "res://assets/monster/Slime.png", 1, 0)
 		collection.append(slime)
@@ -195,6 +195,8 @@ func evolve(mon: MonsterData, rec: Dictionary, fodder: Array) -> bool:
 	mon.texture_path = rec["tex"]
 	mon.texture = load(rec["tex"]) if rec["tex"] != "" else load("res://icon.svg")
 	mon.hp = mon.max_hp
+	mon.level = 1
+	mon.xp = 0
 	team_hp = team_max_hp()
 	save_game()
 	return true
