@@ -70,40 +70,13 @@ func _refresh() -> void:
 		fuse_btn.disabled = fodder.is_empty()
 
 func _make_card(mon: MonsterData) -> Control:
-	var is_base: bool = (mon == base_mon)
-	var is_fodder: bool = fodder.has(mon)
-
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(180, 180)
-	var st := StyleBoxFlat.new()
-	st.bg_color = Color(0.15, 0.15, 0.2)
-	st.set_corner_radius_all(10)
-	st.set_border_width_all(4)
-	st.border_color = Color(0.95, 0.8, 0.2) if is_base else (Color(0.9, 0.3, 0.3) if is_fodder else Color(0.3, 0.3, 0.35))
-	panel.add_theme_stylebox_override("panel", st)
-
-	var btn := Button.new()
-	btn.flat = true
-	btn.pressed.connect(_on_card.bind(mon))
-	panel.add_child(btn)
-
-	var vb := VBoxContainer.new()
-	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn.add_child(vb)
-
-	var img := TextureRect.new()
-	img.texture = mon.texture
-	img.custom_minimum_size = Vector2(0, 90)
-	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	vb.add_child(img)
-
-	var lbl := Label.new()
-	lbl.text = "%s\nNv %d" % [mon.mon_name, mon.level]
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vb.add_child(lbl)
-
-	return panel
+	var border := Color(0.95, 0.8, 0.2) if mon == base_mon \
+		else (Color(0.9, 0.3, 0.3) if fodder.has(mon) else UICards.BORDER_OFF)
+	var c := UICards.tappable_card(border, Vector2(180, 160), _on_card.bind(mon))
+	var vb: VBoxContainer = c[1]
+	vb.add_child(UICards.image(mon))
+	vb.add_child(UICards.label("%s\nNv %d" % [mon.mon_name, mon.level]))
+	return c[0]
 
 func _on_card(mon: MonsterData) -> void:
 	if base_mon == null:

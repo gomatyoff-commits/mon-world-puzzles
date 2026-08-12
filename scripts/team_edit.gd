@@ -55,43 +55,15 @@ func _refresh() -> void:
 
 func _make_card(mon: MonsterData) -> Control:
 	var in_team: bool = GameManager.team.has(mon)
+	var border := Color(0.3, 0.9, 0.4) if in_team else UICards.BORDER_OFF
+	var c := UICards.card(border, Vector2(180, 260))
+	var vb: VBoxContainer = c[1]
 
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(180, 260)
-	var pstyle := StyleBoxFlat.new()
-	pstyle.bg_color = Color(0.15, 0.15, 0.2)
-	pstyle.set_corner_radius_all(10)
-	pstyle.set_border_width_all(4)
-	pstyle.border_color = Color(0.3, 0.9, 0.4) if in_team else Color(0.3, 0.3, 0.35)
-	panel.add_theme_stylebox_override("panel", pstyle)
+	vb.add_child(UICards.image(mon))
+	vb.add_child(UICards.label(mon.mon_name))
+	vb.add_child(UICards.label("Nv %d   %s" % [mon.level, Elements.NAMES[mon.element]]))
+	vb.add_child(UICards.label("PV %d  ATK %d" % [mon.max_hp, mon.atk]))
 
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 4)
-	panel.add_child(vb)
-
-	var img := TextureRect.new()
-	img.texture = mon.texture
-	img.custom_minimum_size = Vector2(0, 90)
-	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	vb.add_child(img)
-
-	var name_lbl := Label.new()
-	name_lbl.text = mon.mon_name
-	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vb.add_child(name_lbl)
-
-	var lvl_lbl := Label.new()
-	lvl_lbl.text = "Nv %d   %s" % [mon.level, Elements.NAMES[mon.element]]
-	lvl_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vb.add_child(lvl_lbl)
-
-	var stat_lbl := Label.new()
-	stat_lbl.text = "PV %d  ATK %d" % [mon.max_hp, mon.atk]
-	stat_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vb.add_child(stat_lbl)
-
-	# barre d'XP
 	var xp_bar := ProgressBar.new()
 	xp_bar.show_percentage = false
 	xp_bar.max_value = mon.xp_to_next()
@@ -99,13 +71,12 @@ func _make_card(mon: MonsterData) -> Control:
 	xp_bar.custom_minimum_size = Vector2(0, 12)
 	vb.add_child(xp_bar)
 
-	# bouton ajouter / retirer
 	var btn := Button.new()
 	btn.text = "Retirer" if in_team else "Ajouter"
 	btn.pressed.connect(_toggle.bind(mon))
 	vb.add_child(btn)
 
-	return panel
+	return c[0]
 
 func _toggle(mon: MonsterData) -> void:
 	if GameManager.team.has(mon):

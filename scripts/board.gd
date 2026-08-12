@@ -9,6 +9,8 @@ const ORB_SCENE := preload("res://scenes/Orb.tscn")
 const MAX_MOVE_TIME := 4.5 # secondes autorisées pour déplacer
 const BG_PAD := 14        # marge du grand bloc autour du board
 const CELL_INSET := 6     # espace entre le bord d'une case et son petit bloc
+const DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+const DEBUG := false
 
 var grid: Array[Array] = []       # grid[x][y] -> Orb
 var held_orb: Orb = null
@@ -114,9 +116,7 @@ func _input(event: InputEvent) -> void:
 		_drag(event.position)
 
 func _grab(screen_pos: Vector2) -> void:
-	if is_resolving:
-		return
-	if not _can_play():         # bloque si résolution en cours OU combat fini
+	if not _can_play():
 		return
 	var cell := pixel_to_grid(to_local(screen_pos))
 	if not in_bounds(cell):
@@ -125,7 +125,7 @@ func _grab(screen_pos: Vector2) -> void:
 	last_cell = cell
 	is_moving = true
 	move_timer = MAX_MOVE_TIME
-	held_orb.z_index = 10            # au-dessus des autres orbes
+	held_orb.z_index = 10
 
 func _drag(screen_pos: Vector2) -> void:
 	if held_orb == null:
@@ -159,7 +159,6 @@ func _release() -> void:
 func _process(delta: float) -> void:
 	if is_moving:
 		move_timer -= delta
-		ui.set_move_timer(move_timer / MAX_MOVE_TIME)
 		if move_timer <= 0.0:
 			_release()
 
@@ -208,10 +207,9 @@ func find_match_groups() -> Array:
 			var c: Vector2i = stack.pop_back()
 			group.append(c)
 			# 4 voisins orthogonaux
-			for dir in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+			for dir in DIRS:
 				var n: Vector2i = c + dir
 				if matched.has(n) and not visited.has(n):
-					# même couleur uniquement
 					if grid[n.x][n.y] != null and grid[n.x][n.y].element == elem:
 						visited[n] = true
 						stack.append(n)
@@ -309,8 +307,9 @@ func resolve_matches() -> void:
 			combo_count += 1
 			var elem: int = grid[group[0].x][group[0].y].element
 			var nb: int = group.size()
-			print("Combo n°", combo_count, " : ", group.size(),
-				  " orbes ", Elements.NAMES[elem])
+			if DEBUG:
+				print("Combo n°", combo_count, " : ", group.size(),
+					  " orbes ", Elements.NAMES[elem])
 			for m in GameManager.team:
 				if GameManager.team_hp <= 0:
 					continue
@@ -333,26 +332,11 @@ func resolve_matches() -> void:
 		await _refill()
 	
 	# --- Appliquer les dégâts aux ennemis ---
-	print("Taille équipe : ", GameManager.team.size())
-	print("Dégâts accumulés : ", dmg_by_element)
 	_apply_damage_to_enemies(dmg_by_element)
 	ui.show_combo(combo_count)
-	ui.refresh_all() 
-	_end_player_turn()          # l'ennemi joue pendant que is_resolving = true
-	is_resolving = false        # on rend la main SEULEMENT après le tour ennemi
-	
-	print("TOTAL combos : ", combo_count)
-	is_resolving = false
-	_end_player_turn()
-
-# dégâts d'un monstre allié de couleur "attacker_elem"
-# qui matche "nb_orbs" orbes, sur un ennemi de couleur "defender_elem"
-func compute_damage(base_atk: int, nb_orbs: int, defender_elem: int, attacker_elem: int) -> float:
-	# bonus par orbe : 3 orbes = ×1.0, chaque orbe en plus = +25%
-	var orb_bonus := 1.0 + (nb_orbs - 3) * 0.25
-	 # multiplicateur élémentaire (ta table : ×2 fort, ×0.5 faible, ×1 sinon)
-	var elem_mult := Elements.get_multiplier(attacker_elem, defender_elem)
-	return base_atk * orb_bonus * elem_mult
+	ui.refresh_all()
+	_end_player_turn()      
+	is_resolving = false 
 
 func _apply_damage_to_enemies(dmg_by_element: Dictionary) -> void:
 	var target: MonsterData = _first_alive_enemy()
@@ -363,7 +347,8 @@ func _apply_damage_to_enemies(dmg_by_element: Dictionary) -> void:
 		var mult := Elements.get_multiplier(elem, target.element)   # ta table !
 		total += dmg_by_element[elem] * mult
 	target.hp = max(0, target.hp - int(total))
-	print("L'ennemi ", target.mon_name, " prend ", int(total), " dégâts (PV: ", target.hp, ")")
+	if DEBUG:
+		print("L'ennemi ", target.mon_name, " prend ", int(total), " dégâts (PV: ", target.hp, ")")
 
 func _first_alive_enemy() -> MonsterData:
 	for e in GameManager.enemies:
@@ -412,7 +397,8 @@ func _end_player_turn() -> void:
 
 func _enemy_attack(e: MonsterData) -> void:
 	GameManager.team_hp = max(0, GameManager.team_hp - e.atk)
-	print(e.mon_name, " attaque l'équipe : -", e.atk, " PV (reste ", GameManager.team_hp, ")")
+	if DEBUG:
+		print(e.mon_name, " attaque l'équipe : -", e.atk, " PV (reste ", GameManager.team_hp, ")")
 
 func _can_play() -> bool:
 	return not is_resolving and not battle_over
