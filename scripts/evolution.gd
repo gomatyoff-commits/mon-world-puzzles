@@ -72,9 +72,9 @@ func _refresh() -> void:
 		grid.add_child(_make_card(mon))
 
 	var mats: Array[String] = []
-	for id in LootDB.materials.keys():
-		if int(LootDB.materials[id]) > 0:
-			mats.append("%s x%d" % [LootDB.MATERIALS[id], LootDB.materials[id]])
+	for id in GameManager.materials.keys():
+		if int(GameManager.materials[id]) > 0:
+			mats.append("%s x%d" % [LootDB.MATERIALS[id], GameManager.materials[id]])
 	mat_label.text = "Matériaux : " + (", ".join(mats) if mats.size() > 0 else "aucun")
 
 	if base_mon == null:

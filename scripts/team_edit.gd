@@ -63,6 +63,7 @@ func _make_card(mon: MonsterData) -> Control:
 	vb.add_child(UICards.label(mon.mon_name))
 	vb.add_child(UICards.label("Nv %d   %s" % [mon.level, Elements.NAMES[mon.element]]))
 	vb.add_child(UICards.label("PV %d  ATK %d" % [mon.max_hp, mon.atk]))
+	vb.add_child(UICards.label("PV %d  ATK %d  DEF %d" % [mon.max_hp, mon.atk, mon.defense]))
 
 	var xp_bar := ProgressBar.new()
 	xp_bar.show_percentage = false

@@ -8,6 +8,7 @@ var mon_name: String
 var element: int
 var base_hp: int
 var base_atk: int
+var base_def: int
 var texture_path: String = ""
 var texture: Texture2D
 var turn_counter: int
@@ -17,12 +18,13 @@ var hp: int = 0
 var rank: int = 0
 var species_id: String = ""
 
-func _init(p_name: String, p_element: int, p_base_hp: int, p_base_atk: int,
+func _init(p_name: String, p_element: int, p_base_hp: int, p_base_atk: int, p_base_def: int,
 		   p_turns := 1, p_texture_path := "", p_level := 1, p_rank := 0) -> void:
 	mon_name = p_name
 	element = p_element
 	base_hp = p_base_hp
 	base_atk = p_base_atk
+	base_def = p_base_def
 	turn_counter = p_turns
 	texture_path = p_texture_path
 	texture = load(p_texture_path) if p_texture_path != "" else load("res://icon.svg")
@@ -35,6 +37,9 @@ var max_hp: int:
 
 var atk: int:
 	get: return int(round(base_atk * (1.0 + (level - 1) * GROWTH)))
+
+var defense: int:
+	get: return int(round(base_def * (1.0 + (level - 1) * GROWTH)))
 
 func is_alive() -> bool:
 	return hp > 0

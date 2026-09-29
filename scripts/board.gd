@@ -296,32 +296,33 @@ func resolve_matches() -> void:
 	is_resolving = true
 
 	var combo_count := 0
-	var dmg_by_element := {}
+	var dmg_single := {}     # dégâts sur 1 seul ennemi
+	var dmg_all := {}        # dégâts de ZONE (groupes de 5+) -> tous les ennemis
+
 	while true:
 		var groups := find_match_groups()
 		if groups.is_empty():
 			break
 
-		# chaque groupe = 1 combo
 		for group in groups:
 			combo_count += 1
 			var elem: int = grid[group[0].x][group[0].y].element
 			var nb: int = group.size()
 			if DEBUG:
-				print("Combo n°", combo_count, " : ", group.size(),
-					  " orbes ", Elements.NAMES[elem])
+				print("Combo n°", combo_count, " : ", nb, " orbes ", Elements.NAMES[elem])
+
+			# 5 orbes ou plus détruits ensemble -> attaque de ZONE
+			var bucket: Dictionary = dmg_all if nb >= 5 else dmg_single
+
 			for m in GameManager.team:
 				if GameManager.team_hp <= 0:
 					continue
 				var raw: float = (1.0 + (nb - 3) * 0.25) * m.atk
 				if m.element == elem:
-					# match élémentaire -> profite de la table de faiblesse (x2 / x0.5)
-					dmg_by_element[elem] = dmg_by_element.get(elem, 0.0) + raw
+					bucket[elem] = bucket.get(elem, 0.0) + raw
 				elif m.element == Elements.E.NEUTRAL:
-					# NEUTRE : attaque avec N'IMPORTE quelle orbe (dégâts x1)
-					dmg_by_element[Elements.E.NEUTRAL] = dmg_by_element.get(Elements.E.NEUTRAL, 0.0) + raw
+					bucket[Elements.E.NEUTRAL] = bucket.get(Elements.E.NEUTRAL, 0.0) + raw
 
-		# on aplatit tous les groupes pour l'effacement
 		var all_cells: Array[Vector2i] = []
 		for group in groups:
 			for c in group:
@@ -330,25 +331,47 @@ func resolve_matches() -> void:
 		await _clear_matches(all_cells)
 		await _apply_gravity()
 		await _refill()
-	
-	# --- Appliquer les dégâts aux ennemis ---
-	_apply_damage_to_enemies(dmg_by_element)
+
+	# --- Multiplicateur de COMBO global : 4=x1.1, 5=x1.2, 6=x1.3 ... ---
+	var combo_mult := 1.0
+	if combo_count >= 4:
+		combo_mult = 1.0 + (combo_count - 3) * 0.1
+
+	_apply_damage_single(dmg_single, combo_mult)   # 1 ennemi
+	_apply_damage_all(dmg_all, combo_mult)         # tous les ennemis (zone)
+
 	ui.show_combo(combo_count)
 	ui.refresh_all()
-	_end_player_turn()      
-	is_resolving = false 
+	_end_player_turn()
+	is_resolving = false
 
-func _apply_damage_to_enemies(dmg_by_element: Dictionary) -> void:
+# Dégâts sur le premier ennemi vivant
+func _apply_damage_single(dmg: Dictionary, combo_mult: float) -> void:
 	var target: MonsterData = _first_alive_enemy()
 	if target == null:
 		return
+	_deal(target, dmg, combo_mult)
+
+# Dégâts de ZONE : touche TOUS les ennemis vivants
+func _apply_damage_all(dmg: Dictionary, combo_mult: float) -> void:
+	if dmg.is_empty():
+		return
+	for e in GameManager.enemies:
+		if e.is_alive():
+			_deal(e, dmg, combo_mult)
+
+# Applique les dégâts à une cible (table élémentaire + combo + défense, min 1)
+func _deal(target: MonsterData, dmg: Dictionary, combo_mult: float) -> void:
 	var total := 0.0
-	for elem in dmg_by_element.keys():
-		var mult := Elements.get_multiplier(elem, target.element)   # ta table !
-		total += dmg_by_element[elem] * mult
-	target.hp = max(0, target.hp - int(total))
+	for elem in dmg.keys():
+		total += dmg[elem] * Elements.get_multiplier(elem, target.element)
+	total *= combo_mult
+	var dealt := int(total) - target.defense
+	if dealt < 1:
+		dealt = 1
+	target.hp = max(0, target.hp - dealt)
 	if DEBUG:
-		print("L'ennemi ", target.mon_name, " prend ", int(total), " dégâts (PV: ", target.hp, ")")
+		print(target.mon_name, " prend ", dealt, " dégâts (PV: ", target.hp, ")")
 
 func _first_alive_enemy() -> MonsterData:
 	for e in GameManager.enemies:
@@ -396,6 +419,9 @@ func _end_player_turn() -> void:
 		battle_over = true
 
 func _enemy_attack(e: MonsterData) -> void:
+	var dmg := e.atk - GameManager.team_defense()
+	if dmg < 1:
+		dmg = 1
 	GameManager.team_hp = max(0, GameManager.team_hp - e.atk)
 	if DEBUG:
 		print(e.mon_name, " attaque l'équipe : -", e.atk, " PV (reste ", GameManager.team_hp, ")")

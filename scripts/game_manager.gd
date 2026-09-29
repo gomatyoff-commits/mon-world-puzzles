@@ -14,12 +14,12 @@ var NB_LEVELS := LEVELS.size()
 # --- ÉVOLUTIONS : par species_id, cible = un autre id de la bibliothèque ---
 var evolutions := {
 	"slime": [
-		{ "to_id": "slime_feu",     "min_level": 20, "fodder": 5, "material": "cristal_feu" },
-		{ "to_id": "slime_eau",     "min_level": 20, "fodder": 5, "material": "cristal_eau" },
-		{ "to_id": "slime_terre",   "min_level": 20, "fodder": 5, "material": "cristal_terre" },
-		{ "to_id": "slime_vent",    "min_level": 20, "fodder": 5, "material": "cristal_vent" },
-		{ "to_id": "slime_lumiere", "min_level": 20, "fodder": 5, "material": "cristal_lumiere" },
-		{ "to_id": "slime_tenebre", "min_level": 20, "fodder": 5, "material": "cristal_tenebre" },
+		{ "to_id": "slime_feu",     "min_level": 10, "fodder": 5, "material": "cristal_feu" },
+		{ "to_id": "slime_eau",     "min_level": 10, "fodder": 5, "material": "cristal_eau" },
+		{ "to_id": "slime_terre",   "min_level": 10, "fodder": 5, "material": "cristal_terre" },
+		{ "to_id": "slime_vent",    "min_level": 10, "fodder": 5, "material": "cristal_vent" },
+		{ "to_id": "slime_lumiere", "min_level": 10, "fodder": 5, "material": "cristal_lumiere" },
+		{ "to_id": "slime_tenebre", "min_level": 10, "fodder": 5, "material": "cristal_tenebre" },
 	],
 }
 
@@ -109,6 +109,14 @@ func team_max_hp() -> int:
 
 func team_total_hp() -> int:
 	return team_hp
+
+func team_defense() -> int:
+	if team.is_empty():
+		return 0
+	var total := 0
+	for m in team:
+		total += m.defense
+	return int(total / team.size())
 
 func gain_team_xp(amount: int) -> void:
 	for m in team: m.add_xp(amount)
