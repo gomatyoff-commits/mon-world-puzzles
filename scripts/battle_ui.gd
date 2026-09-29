@@ -6,7 +6,6 @@ const ROWS := 5
 const BOARD_MARGIN := 20
 
 var enemy_widgets: Array = []
-var team_widgets: Array = []
 var combo_label: Label
 var result_label: Label
 var team_hp_bar: ProgressBar
@@ -58,7 +57,6 @@ func _build_ui() -> void:
 	for m in GameManager.team:
 		var w := _make_monster_widget(m, 90, true, false)     # vie au-dessus
 		team_row.add_child(w["root"])
-		team_widgets.append(w)
 	
 	# --- BARRE DE VIE COMMUNE de l'équipe (au-dessus des images) ---
 	team_hp_bar = ProgressBar.new()
@@ -105,20 +103,20 @@ func _make_monster_widget(mon: MonsterData, img_size: int, hp_on_top: bool, with
 	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 
-	var turn := Label.new()
-	turn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-
 	if with_bar and hp_on_top:
 		box.add_child(bar)
 		box.add_child(img)
+		return { "mon": mon, "root": box, "bar": bar, "turn": null }
 	elif with_bar:
+		var turn := Label.new()
+		turn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(img)
 		box.add_child(bar)
 		box.add_child(turn)
+		return { "mon": mon, "root": box, "bar": bar, "turn": turn }
 	else:
 		box.add_child(img)
-
-	return { "mon": mon, "root": box, "bar": bar, "turn": turn }
+		return { "mon": mon, "root": box, "bar": bar, "turn": null }
 
 func refresh_all() -> void:
 	for w in enemy_widgets:
@@ -147,9 +145,6 @@ func show_combo(count: int) -> void:
 	var tw := create_tween()
 	tw.tween_property(combo_label, "scale", Vector2.ONE, 0.25)\
 	  .set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-
-func set_move_timer(_ratio: float) -> void:
-	pass   # (optionnel : on pourra rajouter une petite barre plus tard)
 
 func show_result(victory: bool, extra_text := "") -> void:
 	result_label.visible = true
