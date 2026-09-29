@@ -18,6 +18,8 @@ config/icon="res://icon.svg"
 [autoload]
 
 Elements="*uid://dlkn4nh031fpq"
+MonsterDB="*uid://b7pxm08w5j020"
+LootDB="*uid://b2ciic5qs4it8"
 GameManager="*uid://ckmcowpseo53s"
 
 [display]

@@ -72,9 +72,9 @@ func _refresh() -> void:
 		grid.add_child(_make_card(mon))
 
 	var mats: Array[String] = []
-	for id in GameManager.materials.keys():
-		if int(GameManager.materials[id]) > 0:
-			mats.append("%s x%d" % [GameManager.MATERIALS[id], GameManager.materials[id]])
+	for id in LootDB.materials.keys():
+		if int(LootDB.materials[id]) > 0:
+			mats.append("%s x%d" % [LootDB.MATERIALS[id], LootDB.materials[id]])
 	mat_label.text = "Matériaux : " + (", ".join(mats) if mats.size() > 0 else "aucun")
 
 	if base_mon == null:
@@ -84,12 +84,12 @@ func _refresh() -> void:
 		info_label.text = "Choisis une évolution"
 		evolve_btn.disabled = true
 	else:
-		var err := GameManager.can_evolve(base_mon, selected_rec, fodder)
+		var err: String = GameManager.can_evolve(base_mon, selected_rec, fodder)
 		info_label.text = "%s → %s\nNv %d/%d · Sacrifices %d/%d · %s\n%s" % [
-			base_mon.mon_name, selected_rec["to"],
+			base_mon.mon_name, GameManager.evo_name(selected_rec),
 			base_mon.level, selected_rec["min_level"],
 			fodder.size(), selected_rec["fodder"],
-			GameManager.MATERIALS[selected_rec["material"]],
+			LootDB.MATERIALS[selected_rec["material"]],
 			("✅ Prêt !" if err == "" else "❌ " + err)]
 		evolve_btn.disabled = (err != "")
 
@@ -153,7 +153,7 @@ func _open_evo_popup(mon: MonsterData) -> void:
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(0, 64)
 		b.text = "→ %s   (Nv %d · %d slimes · %s)" % [
-			rec["to"], rec["min_level"], rec["fodder"], GameManager.MATERIALS[rec["material"]]]
+			GameManager.evo_name(rec), rec["min_level"], rec["fodder"], LootDB.MATERIALS[rec["material"]]]
 		b.pressed.connect(_choose_evo.bind(mon, rec))
 		vb.add_child(b)
 
@@ -178,7 +178,7 @@ func _close_popup() -> void:
 func _do_evolve() -> void:
 	if base_mon == null or selected_rec.is_empty():
 		return
-	var target: String = selected_rec.get("to", "")
+	var target: String = GameManager.evo_name(selected_rec)
 	if GameManager.evolve(base_mon, selected_rec, fodder):
 		info_label.text = "✨ Évolution réussie → %s !" % target
 		base_mon = null
