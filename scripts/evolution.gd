@@ -60,7 +60,7 @@ func _build() -> void:
 	back.custom_minimum_size = Vector2(160, 56)
 	back.position = Vector2(30, vp.y - 80)
 	back.pressed.connect(func():
-		get_tree().change_scene_to_file("res://scenes/MainMenu.tscn"))
+		get_tree().change_scene_to_file("res://scenes/AlchemyMenu.tscn"))
 	add_child(back)
 
 	_refresh()

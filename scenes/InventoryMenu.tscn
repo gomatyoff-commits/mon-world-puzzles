@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://b5f1vmoiuf60s"]
+
+[ext_resource type="Script" uid="uid://d043v8bldxy7b" path="res://scripts/inventory.gd" id="1_i4f8q"]
+
+[node name="InventoryMenu" type="Node2D" unique_id=1918035313]
+
+[node name="Control" type="Control" parent="." unique_id=1319421011]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_i4f8q")
