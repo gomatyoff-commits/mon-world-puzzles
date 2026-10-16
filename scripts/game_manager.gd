@@ -28,6 +28,9 @@ var team: Array[MonsterData] = []
 var enemies: Array[MonsterData] = []
 var team_hp: int = 0
 var materials := {}
+var player_name := "Joueur"   # pseudo du joueur
+var coins := 500   # pièces (solde de départ)
+var gems := 100    # gemmes (solde de départ)
 
 var game_mode := "story"
 var current_level := 1
@@ -180,7 +183,7 @@ func evolve(mon: MonsterData, rec: Dictionary, fodder: Array) -> bool:
 
 # --- SAUVEGARDE (simplifiée : on ne stocke que id + level + xp) ---
 func save_game() -> void:
-	var data := { "collection": [], "team": [], "materials": materials }
+	var data := { "collection": [], "team": [], "materials": materials, "coins": coins, "gems": gems, "player_name": player_name }
 	for m in collection:
 		data["collection"].append({ "id": m.species_id, "level": m.level, "xp": m.xp })
 	for m in team:
@@ -196,6 +199,9 @@ func _load() -> void:
 	f.close()
 	if data == null: return
 	materials = data.get("materials", {})
+	player_name = str(data.get("player_name", player_name))
+	coins = int(data.get("coins", coins))
+	gems = int(data.get("gems", gems))
 	var col = data.get("collection", [])
 	if col.size() > 0:
 		collection.clear()
@@ -210,3 +216,14 @@ func _load() -> void:
 		var i := int(idx)
 		if i >= 0 and i < collection.size():
 			team.append(collection[i])
+
+# --- BOUTIQUE ---
+func buy_monster(species_id: String, gem_cost: int) -> String:
+	if not MonsterDB.has(species_id):
+		return "Monstre inconnu."
+	if gems < gem_cost:
+		return "❌ Pas assez de gemmes !"
+	gems -= gem_cost
+	collection.append(MonsterDB.create(species_id))
+	save_game()
+	return "✅ %s ajouté à ta collection !" % MonsterDB.display_name(species_id)

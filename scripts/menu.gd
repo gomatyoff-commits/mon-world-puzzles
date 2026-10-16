@@ -6,7 +6,7 @@ const TABS := [
 	{"label": "Équipe",    "icon": "⚔️", "scene": "res://scenes/TeamEdit.tscn"},
 	{"label": "Alchimie",  "icon": "⚗️", "scene": "res://scenes/AlchemyMenu.tscn"},
 	{"label": "Plus tard", "icon": "❔", "scene": ""},
-	{"label": "Plus tard", "icon": "❔", "scene": ""},
+	{"label": "Boutique",  "icon": "🛒", "scene": "res://scenes/ShopMenu.tscn"},
 ]
 
 func _ready() -> void:
@@ -26,6 +26,8 @@ func _build() -> void:
 	add_child(title)
 
 	_build_bottom_bar(vp)
+	
+	add_child(UIHeader.make(vp))
 
 func _build_bottom_bar(vp: Vector2) -> void:
 	var bar_h := 92.0

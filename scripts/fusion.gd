@@ -11,26 +11,27 @@ func _ready() -> void:
 
 func _build() -> void:
 	var vp := get_viewport_rect().size
+	add_child(UIHeader.make(vp))
 
 	var title := Label.new()
 	title.text = "⬆️ MONTER DE NIVEAU"
 	title.add_theme_font_size_override("font_size", 34)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(0, 20)
+	title.position = Vector2(0, 85)
 	title.size = Vector2(vp.x, 55)
 	add_child(title)
 
 	info_label = Label.new()
 	info_label.add_theme_font_size_override("font_size", 22)
 	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_label.position = Vector2(0, 80)
+	info_label.position = Vector2(0, 130)
 	info_label.size = Vector2(vp.x, 50)
 	add_child(info_label)
 
 	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(vp.x * 0.05, 140)
-	scroll.size = Vector2(vp.x * 0.9, vp.y - 300)
+	scroll.position = Vector2(vp.x * 0.05, 200)
+	scroll.size = Vector2(vp.x * 0.9, vp.y - 360)
 	add_child(scroll)
 	grid = GridContainer.new()
 	grid.columns = 3

@@ -13,20 +13,20 @@ func _build() -> void:
 	title.text = "⚔️ ÉDITION D'ÉQUIPE"
 	title.add_theme_font_size_override("font_size", 40)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(0, 30)
+	title.position = Vector2(0, 88)
 	title.size = Vector2(vp.x, 60)
 	add_child(title)
 
 	status_label = Label.new()
 	status_label.add_theme_font_size_override("font_size", 26)
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status_label.position = Vector2(0, 95)
+	status_label.position = Vector2(0, 150)
 	status_label.size = Vector2(vp.x, 40)
 	add_child(status_label)
 
 	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(vp.x * 0.05, 150)
-	scroll.size = Vector2(vp.x * 0.9, vp.y - 260)
+	scroll.position = Vector2(vp.x * 0.05, 205)
+	scroll.size = Vector2(vp.x * 0.9, vp.y - 315)
 	add_child(scroll)
 
 	grid = GridContainer.new()
@@ -45,6 +45,8 @@ func _build() -> void:
 		GameManager.save_game()                                   # ✅ sauve l'équipe choisie
 		get_tree().change_scene_to_file("res://scenes/MainMenu.tscn"))
 	add_child(back)
+	
+	add_child(UIHeader.make(vp))
 
 func _refresh() -> void:
 	for c in grid.get_children():

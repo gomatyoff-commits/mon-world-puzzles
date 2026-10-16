@@ -8,13 +8,13 @@ func _ready() -> void:
 	title.add_theme_font_size_override("font_size", 38)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(0, 30)
+	title.position = Vector2(0, 90)
 	title.size = Vector2(vp.x, 55)
 	add_child(title)
 
 	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(vp.x * 0.1, 110)
-	scroll.size = Vector2(vp.x * 0.8, vp.y - 220)
+	scroll.position = Vector2(vp.x * 0.1, 170)
+	scroll.size = Vector2(vp.x * 0.8, vp.y - 280)
 	add_child(scroll)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 10)
@@ -47,3 +47,5 @@ func _ready() -> void:
 	back.pressed.connect(func():
 		get_tree().change_scene_to_file("res://scenes/AlchemyMenu.tscn"))
 	add_child(back)
+	
+	add_child(UIHeader.make(vp))

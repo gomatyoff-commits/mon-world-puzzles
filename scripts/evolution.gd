@@ -15,32 +15,33 @@ func _ready() -> void:
 
 func _build() -> void:
 	var vp := get_viewport_rect().size
+	add_child(UIHeader.make(vp))
 
 	var title := Label.new()
 	title.text = "🔮 ÉVOLUTION"
 	title.add_theme_font_size_override("font_size", 38)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(0, 15)
+	title.position = Vector2(0, 85)
 	title.size = Vector2(vp.x, 50)
 	add_child(title)
 
 	mat_label = Label.new()
 	mat_label.add_theme_font_size_override("font_size", 20)
 	mat_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mat_label.position = Vector2(0, 65)
+	mat_label.position = Vector2(0, 130)
 	mat_label.size = Vector2(vp.x, 30)
 	add_child(mat_label)
 
 	info_label = Label.new()
 	info_label.add_theme_font_size_override("font_size", 20)
 	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_label.position = Vector2(0, 100)
+	info_label.position = Vector2(0, 165)
 	info_label.size = Vector2(vp.x, 70)
 	add_child(info_label)
 
 	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(vp.x * 0.05, 175)
-	scroll.size = Vector2(vp.x * 0.9, vp.y - 330)
+	scroll.position = Vector2(vp.x * 0.05, 235)
+	scroll.size = Vector2(vp.x * 0.9, vp.y - 390)
 	add_child(scroll)
 	grid = GridContainer.new()
 	grid.columns = 3

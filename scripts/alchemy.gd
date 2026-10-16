@@ -8,7 +8,7 @@ func _ready() -> void:
 	title.add_theme_font_size_override("font_size", 40)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(0, 40)
+	title.position = Vector2(0, 95)
 	title.size = Vector2(vp.x, 60)
 	add_child(title)
 
@@ -26,6 +26,8 @@ func _ready() -> void:
 		get_tree().change_scene_to_file("res://scenes/MainMenu.tscn"))
 	back.position = Vector2(30, vp.y - 80)
 	add_child(back)
+	
+	add_child(UIHeader.make(vp))
 
 func _add(col: VBoxContainer, title: String, color: Color, scene: String) -> void:
 	var b := UIStyle.menu_button(title, color, func():
