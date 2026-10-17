@@ -19,6 +19,7 @@ var is_moving := false
 var move_timer := 0.0
 var is_resolving := false
 var battle_over := false
+var coins_earned := 0
 
 func _ready() -> void:
 	_build_grid()
@@ -369,7 +370,12 @@ func _deal(target: MonsterData, dmg: Dictionary, combo_mult: float) -> void:
 	var dealt := int(total) - target.defense
 	if dealt < 1:
 		dealt = 1
+	var was_alive := target.is_alive()
 	target.hp = max(0, target.hp - dealt)
+	if was_alive and not target.is_alive():
+		var c := GameManager.coin_drop(target)
+		GameManager.coins += c
+		coins_earned += c
 	if DEBUG:
 		print(target.mon_name, " prend ", dealt, " dégâts (PV: ", target.hp, ")")
 
@@ -397,6 +403,9 @@ func _end_player_turn() -> void:
 			var reward := GameManager.current_level * 200
 			GameManager.gain_team_xp(reward)
 			extra = "+%d XP" % reward
+		if coins_earned > 0:
+			extra += "\n🪙 +%d pièces" % coins_earned
+		GameManager.save_game()
 
 		ui.refresh_all()
 		ui.show_result(true, extra)

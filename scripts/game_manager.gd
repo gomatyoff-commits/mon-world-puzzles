@@ -32,6 +32,17 @@ var player_name := "Joueur"   # pseudo du joueur
 var coins := 500   # pièces (solde de départ)
 var gems := 100    # gemmes (solde de départ)
 
+# --- MINE À GEMMES ---
+const GEM_COST := 1000.0            # points nécessaires pour 1 gemme
+const MINE_SLOT_COSTS := [50, 150, 400]   # coût (gemmes) pour débloquer emplacements 2, 3, 4
+var mine_slots: Array[MonsterData] = []
+var mine_capacity := 10             # stockage max de gemmes
+var mine_stored := 0                # gemmes minées en attente de collecte
+var mine_progress := 0.0            # points vers la prochaine gemme
+var mine_last_ts := 0               # horodatage (temps réel) de la dernière MAJ
+var mine_slot_count := 1            # nombre d'emplacements débloqués
+var mine_level := 1                 # niveau de stockage
+
 var game_mode := "story"
 var current_level := 1
 var current_wave := 1
@@ -43,6 +54,7 @@ func _ready() -> void:
 	if team.is_empty():
 		team = collection.slice(0, MAX_TEAM)
 	team_hp = team_max_hp()
+	update_mine()
 
 func _build_collection() -> void:
 	collection = [ MonsterDB.create("slime"), MonsterDB.create("slime"), MonsterDB.create("slime") ]
@@ -86,6 +98,10 @@ func next_wave() -> bool:
 # --- LOOT (via LootDB) ---
 func add_material(id: String, count := 1) -> void:
 	materials[id] = int(materials.get(id, 0)) + count
+
+# Pièces lâchées par un monstre vaincu
+func coin_drop(mon: MonsterData) -> int:
+	return (500 * (mon.rank + 1)) + (mon.level * (mon.rank + 1))
 
 func event_loot() -> String:
 	var nb_slimes := 0
@@ -183,11 +199,19 @@ func evolve(mon: MonsterData, rec: Dictionary, fodder: Array) -> bool:
 
 # --- SAUVEGARDE (simplifiée : on ne stocke que id + level + xp) ---
 func save_game() -> void:
-	var data := { "collection": [], "team": [], "materials": materials, "coins": coins, "gems": gems, "player_name": player_name }
+	var data := {
+		"collection": [], "team": [], "materials": materials,
+		"coins": coins, "gems": gems, "player_name": player_name,
+		"mine_slots": [], "mine_capacity": mine_capacity, "mine_stored": mine_stored,
+		"mine_progress": mine_progress, "mine_last_ts": mine_last_ts,
+		"mine_slot_count": mine_slot_count, "mine_level": mine_level,
+	}
 	for m in collection:
 		data["collection"].append({ "id": m.species_id, "level": m.level, "xp": m.xp })
 	for m in team:
 		data["team"].append(collection.find(m))
+	for m in mine_slots:
+		data["mine_slots"].append(collection.find(m))
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify(data))
 	f.close()
@@ -216,6 +240,18 @@ func _load() -> void:
 		var i := int(idx)
 		if i >= 0 and i < collection.size():
 			team.append(collection[i])
+	
+	mine_capacity   = int(data.get("mine_capacity", mine_capacity))
+	mine_stored     = int(data.get("mine_stored", mine_stored))
+	mine_progress   = float(data.get("mine_progress", mine_progress))
+	mine_last_ts    = int(data.get("mine_last_ts", mine_last_ts))
+	mine_slot_count = int(data.get("mine_slot_count", mine_slot_count))
+	mine_level      = int(data.get("mine_level", mine_level))
+	mine_slots.clear()
+	for idx in data.get("mine_slots", []):
+		var mi := int(idx)
+		if mi >= 0 and mi < collection.size():
+			mine_slots.append(collection[mi])
 
 # --- BOUTIQUE ---
 func buy_monster(species_id: String, gem_cost: int) -> String:
@@ -227,3 +263,84 @@ func buy_monster(species_id: String, gem_cost: int) -> String:
 	collection.append(MonsterDB.create(species_id))
 	save_game()
 	return "✅ %s ajouté à ta collection !" % MonsterDB.display_name(species_id)
+
+func mine_rate() -> int:
+	var r := 0
+	for m in mine_slots:
+		r += m.work
+	return r
+
+func update_mine() -> void:
+	var now := int(Time.get_unix_time_from_system())
+	if mine_last_ts == 0:
+		mine_last_ts = now
+		return
+	var elapsed_min := float(now - mine_last_ts) / 60.0
+	mine_last_ts = now
+	if elapsed_min <= 0.0 or mine_slots.is_empty():
+		return
+	mine_progress += float(mine_rate()) * elapsed_min
+	while mine_progress >= GEM_COST and mine_stored < mine_capacity:
+		mine_progress -= GEM_COST
+		mine_stored += 1
+	if mine_stored >= mine_capacity:
+		mine_progress = 0.0   # mine pleine : va collecter !
+
+func collect_mine() -> int:
+	update_mine()
+	var got := mine_stored
+	gems += got
+	mine_stored = 0
+	save_game()
+	return got
+
+func mine_add(mon: MonsterData) -> bool:
+	update_mine()
+	if mine_slots.size() >= mine_slot_count or mine_slots.has(mon):
+		return false
+	mine_slots.append(mon)
+	save_game()
+	return true
+
+func mine_remove(mon: MonsterData) -> void:
+	update_mine()
+	mine_slots.erase(mon)
+	save_game()
+
+func mine_slot_unlock_cost() -> int:
+	var idx := mine_slot_count - 1
+	if idx >= MINE_SLOT_COSTS.size():
+		return -1   # maximum atteint
+	return MINE_SLOT_COSTS[idx]
+
+func unlock_mine_slot() -> String:
+	var cost := mine_slot_unlock_cost()
+	if cost < 0:
+		return "Nombre d'emplacements maximum atteint."
+	if gems < cost:
+		return "❌ Pas assez de gemmes !"
+	gems -= cost
+	mine_slot_count += 1
+	save_game()
+	return "✅ Nouvel emplacement débloqué !"
+
+func mine_upgrade_cost() -> int:
+	return mine_level * 30
+
+func upgrade_mine() -> String:
+	update_mine()
+	var cost := mine_upgrade_cost()
+	if gems < cost:
+		return "❌ Pas assez de gemmes !"
+	gems -= cost
+	mine_level += 1
+	mine_capacity += 10
+	save_game()
+	return "✅ Stockage amélioré → %d gemmes !" % mine_capacity
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED \
+	or what == NOTIFICATION_WM_CLOSE_REQUEST \
+	or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		update_mine()
+		save_game()

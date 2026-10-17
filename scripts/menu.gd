@@ -5,7 +5,7 @@ const TABS := [
 	{"label": "Event",     "icon": "🎉", "scene": "res://scenes/EventMenu.tscn"},
 	{"label": "Équipe",    "icon": "⚔️", "scene": "res://scenes/TeamEdit.tscn"},
 	{"label": "Alchimie",  "icon": "⚗️", "scene": "res://scenes/AlchemyMenu.tscn"},
-	{"label": "Plus tard", "icon": "❔", "scene": ""},
+	{"label": "Mine",      "icon": "⛏️", "scene": "res://scenes/MineMenu.tscn"},
 	{"label": "Boutique",  "icon": "🛒", "scene": "res://scenes/ShopMenu.tscn"},
 ]
 

@@ -17,6 +17,7 @@ var xp: int = 0
 var hp: int = 0
 var rank: int = 0
 var species_id: String = ""
+var work: int = 1   # vitesse de minage (points/minute) — ne change PAS avec le niveau
 
 func _init(p_name: String, p_element: int, p_base_hp: int, p_base_atk: int, p_base_def: int,
 		   p_turns := 1, p_texture_path := "", p_level := 1, p_rank := 0) -> void:

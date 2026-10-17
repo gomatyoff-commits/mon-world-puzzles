@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://ufqk2ye1m472"]
+
+[ext_resource type="Script" uid="uid://1kh2vd3u6dmd" path="res://scripts/mine.gd" id="1_bn3qi"]
+
+[node name="MineMenu" type="Node2D" unique_id=1766250600]
+
+[node name="Control" type="Control" parent="." unique_id=55744154]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_bn3qi")
