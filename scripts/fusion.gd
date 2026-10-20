@@ -60,6 +60,14 @@ func _refresh() -> void:
 	for c in grid.get_children():
 		c.queue_free()
 	for mon in GameManager.collection:
+		if base_mon == null:
+			# Phase sélection : on voit l'équipe, on masque seulement la mine
+			if GameManager.mine_slots.has(mon):
+				continue
+		else:
+			# Phase sacrifices : on masque équipe + mine (sauf la base sélectionnée)
+			if mon != base_mon and GameManager.is_busy(mon):
+				continue
 		grid.add_child(_make_card(mon))
 	if base_mon == null:
 		info_label.text = "Choisis le monstre à faire monter"
@@ -67,8 +75,12 @@ func _refresh() -> void:
 	else:
 		var gain := 0
 		for f in fodder: gain += f.fusion_value()
-		info_label.text = "%s Nv %d  →  +%d XP  (%d sacrifice(s))" % [base_mon.mon_name, base_mon.level, gain, fodder.size()]
-		fuse_btn.disabled = fodder.is_empty()
+		var cost := GameManager.fusion_cost(base_mon, fodder)
+		var afford := GameManager.coins >= cost
+		info_label.text = "%s Nv %d  →  +%d XP  (%d sacrifice(s))\nCoût : 🪙 %d%s" % [
+			base_mon.mon_name, base_mon.level, gain, fodder.size(), cost,
+			("" if afford else "   ❌ pièces insuffisantes")]
+		fuse_btn.disabled = fodder.is_empty() or not afford
 
 func _make_card(mon: MonsterData) -> Control:
 	var border := Color(0.95, 0.8, 0.2) if mon == base_mon \
@@ -95,6 +107,9 @@ func _do_fusion() -> void:
 	if base_mon == null or fodder.is_empty():
 		return
 	var gained := GameManager.fuse(base_mon, fodder)
+	if gained < 0:
+		info_label.text = "❌ Pas assez de pièces !"
+		return
 	info_label.text = "✨ +%d XP ! %s est Nv %d" % [gained, base_mon.mon_name, base_mon.level]
 	fodder.clear()
 	_refresh()

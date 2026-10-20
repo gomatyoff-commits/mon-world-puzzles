@@ -44,6 +44,23 @@ static func image(mon: MonsterData, h := 90) -> TextureRect:
 	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	return img
 
+# Icône d'une espèce par id : image si découverte, sinon "?"
+static func species_icon(id: String, discovered: bool, h := 100) -> Control:
+	if discovered:
+		var img := TextureRect.new()
+		img.texture = load(MonsterDB.species[id]["tex"])
+		img.custom_minimum_size = Vector2(0, h)
+		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		return img
+	var q := Label.new()
+	q.text = "❓"
+	q.add_theme_font_size_override("font_size", int(h * 0.7))
+	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	q.custom_minimum_size = Vector2(0, h)
+	return q
+
 static func label(text: String, font_size := 0) -> Label:
 	var l := Label.new()
 	l.text = text

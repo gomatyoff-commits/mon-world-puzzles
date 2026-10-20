@@ -3,7 +3,7 @@ extends Control
 var _info: Label
 var _slots_box: VBoxContainer
 var _feedback: Label
-var _picker: Control = null
+var _picker: Node = null
 
 func _ready() -> void:
 	var vp := get_viewport_rect().size
@@ -111,39 +111,72 @@ func _unlock_slot() -> void:
 
 func _open_picker() -> void:
 	var vp := get_viewport_rect().size
-	var overlay := ColorRect.new()
-	overlay.color = Color(0, 0, 0, 0.7)
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(overlay)
-	_picker = overlay
 
-	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(vp.x * 0.1, vp.y * 0.2)
-	scroll.size = Vector2(vp.x * 0.8, vp.y * 0.55)
-	overlay.add_child(scroll)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 10)
-	vb.custom_minimum_size = Vector2(vp.x * 0.8, 0)
-	scroll.add_child(vb)
+	var layer := CanvasLayer.new()
+	layer.layer = 10
+	add_child(layer)
+	_picker = layer
+
+	var overlay := ColorRect.new()
+	overlay.color = Color("#15171e")
+	overlay.position = Vector2.ZERO
+	overlay.size = vp
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.add_child(overlay)
 
 	var t := Label.new()
 	t.text = "Choisis un monstre à envoyer miner"
-	t.add_theme_font_size_override("font_size", 24)
+	t.add_theme_font_size_override("font_size", 28)
 	t.add_theme_color_override("font_color", Color.WHITE)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vb.add_child(t)
+	t.position = Vector2(0, vp.y * 0.06)
+	t.size = Vector2(vp.x, 55)
+	overlay.add_child(t)
 
+	var scroll := ScrollContainer.new()
+	scroll.position = Vector2(vp.x * 0.08, vp.y * 0.14)
+	scroll.size = Vector2(vp.x * 0.84, vp.y * 0.68)
+	overlay.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 12)
+	scroll.add_child(grid)
+
+	var any := false
 	for mon in GameManager.collection:
-		if GameManager.mine_slots.has(mon):
+		if GameManager.mine_slots.has(mon) or GameManager.team.has(mon):
 			continue
-		var m := mon
-		vb.add_child(UIStyle.menu_button("%s — travail %d/min" % [m.mon_name, m.work], UIStyle.COL_BLUE, func():
-			GameManager.mine_add(m)
-			_close_picker()
-			_refresh()))
+		any = true
+		grid.add_child(_mine_card(mon))
 
-	vb.add_child(UIStyle.menu_button("Annuler", UIStyle.COL_GREY, _close_picker))
+	if not any:
+		var empty := Label.new()
+		empty.text = "Aucun monstre disponible."
+		empty.add_theme_font_size_override("font_size", 22)
+		empty.add_theme_color_override("font_color", Color.WHITE)
+		grid.add_child(empty)
+
+	var cancel := UIStyle.menu_button("Annuler", UIStyle.COL_GREY, _close_picker)
+	cancel.position = Vector2(vp.x * 0.3, vp.y * 0.86)
+	cancel.size = Vector2(vp.x * 0.4, 60)
+	overlay.add_child(cancel)
+
+func _mine_card(mon: MonsterData) -> Control:
+	var vp := get_viewport_rect().size
+	var w := (vp.x * 0.84 - 16.0) / 2.0
+	var c := UICards.tappable_card(UICards.BORDER_OFF, Vector2(w, 220), func():
+		GameManager.mine_add(mon)
+		_close_picker()
+		_refresh())
+	var vb: VBoxContainer = c[1]
+	vb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_theme_constant_override("separation", 8)
+	vb.add_child(UICards.image(mon, 120))
+	vb.add_child(UICards.label(mon.mon_name, 26))
+	vb.add_child(UICards.label("⛏️ %d/min" % mon.work, 20))
+	return c[0]
 
 func _close_picker() -> void:
 	if _picker != null:

@@ -75,7 +75,14 @@ func _make_card(mon: MonsterData) -> Control:
 	vb.add_child(xp_bar)
 
 	var btn := Button.new()
-	btn.text = "Retirer" if in_team else "Ajouter"
+	var mining := GameManager.mine_slots.has(mon)
+	if in_team:
+		btn.text = "Retirer"
+	elif mining:
+		btn.text = "⛏️ Mine"
+		btn.disabled = true
+	else:
+		btn.text = "Ajouter"
 	btn.pressed.connect(_toggle.bind(mon))
 	vb.add_child(btn)
 
@@ -84,7 +91,10 @@ func _make_card(mon: MonsterData) -> Control:
 func _toggle(mon: MonsterData) -> void:
 	if GameManager.team.has(mon):
 		GameManager.team.erase(mon)
+	elif GameManager.mine_slots.has(mon):
+		status_label.text = "⛏️ Ce monstre mine : retire-le de la mine d'abord."
+		return
 	elif GameManager.team.size() < GameManager.MAX_TEAM:
 		GameManager.team.append(mon)
-	GameManager.team_hp = GameManager.team_max_hp()   # recalcule le pool
+	GameManager.team_hp = GameManager.team_max_hp()
 	_refresh()

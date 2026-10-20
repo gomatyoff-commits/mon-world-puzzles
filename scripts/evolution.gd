@@ -3,7 +3,7 @@ extends Control
 var base_mon: MonsterData = null
 var selected_rec: Dictionary = {}
 var fodder: Array = []
-var evo_popup: Control = null
+var evo_popup: Node = null
 
 var info_label: Label
 var mat_label: Label
@@ -70,6 +70,12 @@ func _refresh() -> void:
 	for c in grid.get_children():
 		c.queue_free()
 	for mon in GameManager.collection:
+		if base_mon == null:
+			if GameManager.mine_slots.has(mon):
+				continue
+		else:
+			if mon != base_mon and GameManager.is_busy(mon):
+				continue
 		grid.add_child(_make_card(mon))
 
 	var mats: Array[String] = []
@@ -86,11 +92,12 @@ func _refresh() -> void:
 		evolve_btn.disabled = true
 	else:
 		var err: String = GameManager.can_evolve(base_mon, selected_rec, fodder)
-		info_label.text = "%s → %s\nNv %d/%d · Sacrifices %d/%d · %s\n%s" % [
+		info_label.text = "%s → %s\nNv %d/%d · Sacrifices %d/%d · %s · 🪙 %d\n%s" % [
 			base_mon.mon_name, GameManager.evo_name(selected_rec),
 			base_mon.level, selected_rec["min_level"],
 			fodder.size(), selected_rec["fodder"],
 			LootDB.MATERIALS[selected_rec["material"]],
+			GameManager.evolution_cost(base_mon),
 			("✅ Prêt !" if err == "" else "❌ " + err)]
 		evolve_btn.disabled = (err != "")
 
@@ -128,41 +135,58 @@ func _on_card(mon: MonsterData) -> void:
 func _open_evo_popup(mon: MonsterData) -> void:
 	var vp := get_viewport_rect().size
 
+	var layer := CanvasLayer.new()
+	layer.layer = 10
+	add_child(layer)
+	evo_popup = layer
+
 	var overlay := ColorRect.new()
-	overlay.color = Color(0, 0, 0, 0.6)
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color("#15171e")
+	overlay.position = Vector2.ZERO
+	overlay.size = vp
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(overlay)
-	evo_popup = overlay
-
-	var panel := PanelContainer.new()
-	panel.position = Vector2(vp.x * 0.1, vp.y * 0.2)
-	panel.custom_minimum_size = Vector2(vp.x * 0.8, 0)
-	overlay.add_child(panel)
-
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 12)
-	panel.add_child(vb)
+	layer.add_child(overlay)
 
 	var t := Label.new()
 	t.text = "Évolutions de " + mon.mon_name
-	t.add_theme_font_size_override("font_size", 26)
+	t.add_theme_font_size_override("font_size", 30)
+	t.add_theme_color_override("font_color", Color.WHITE)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vb.add_child(t)
+	t.position = Vector2(0, vp.y * 0.06)
+	t.size = Vector2(vp.x, 55)
+	overlay.add_child(t)
+
+	var scroll := ScrollContainer.new()
+	scroll.position = Vector2(vp.x * 0.08, vp.y * 0.14)
+	scroll.size = Vector2(vp.x * 0.84, vp.y * 0.68)
+	overlay.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 16)
+	scroll.add_child(grid)
 
 	for rec in GameManager.get_evolutions(mon):
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(0, 64)
-		b.text = "→ %s   (Nv %d · %d slimes · %s)" % [
-			GameManager.evo_name(rec), rec["min_level"], rec["fodder"], LootDB.MATERIALS[rec["material"]]]
-		b.pressed.connect(_choose_evo.bind(mon, rec))
-		vb.add_child(b)
+		grid.add_child(_evo_card(mon, rec))
 
-	var cancel := Button.new()
-	cancel.text = "Annuler"
-	cancel.custom_minimum_size = Vector2(0, 56)
-	cancel.pressed.connect(_close_popup)
-	vb.add_child(cancel)
+	var cancel := UIStyle.menu_button("Annuler", UIStyle.COL_GREY, _close_popup)
+	cancel.position = Vector2(vp.x * 0.3, vp.y * 0.86)
+	cancel.size = Vector2(vp.x * 0.4, 60)
+	overlay.add_child(cancel)
+
+func _evo_card(mon: MonsterData, rec: Dictionary) -> Control:
+	var vp := get_viewport_rect().size
+	var to_id: String = rec["to_id"]
+	var seen := GameManager.is_discovered(to_id)
+	var c := UICards.tappable_card(UIStyle.COL_GOLD, Vector2(vp.x * 0.36, 250), _choose_evo.bind(mon, rec))
+	var vb: VBoxContainer = c[1]
+	vb.add_theme_constant_override("separation", 6)
+	vb.add_child(UICards.species_icon(to_id, seen, 110))
+	vb.add_child(UICards.label(GameManager.evo_name(rec) if seen else "???", 22))
+	vb.add_child(UICards.label("Nv %d requis" % rec["min_level"], 18))
+	vb.add_child(UICards.label("%d sacrifice(s)" % rec["fodder"], 16))
+	vb.add_child(UICards.label(LootDB.MATERIALS[rec["material"]], 16))
+	return c[0]
 
 func _choose_evo(mon: MonsterData, rec: Dictionary) -> void:
 	base_mon = mon

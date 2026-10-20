@@ -31,6 +31,7 @@ var materials := {}
 var player_name := "Joueur"   # pseudo du joueur
 var coins := 500   # pièces (solde de départ)
 var gems := 100    # gemmes (solde de départ)
+var discovered := {}   # species_id -> true (monstres déjà possédés ou vus)
 
 # --- MINE À GEMMES ---
 const GEM_COST := 1000.0            # points nécessaires pour 1 gemme
@@ -51,6 +52,8 @@ var total_waves := 1
 func _ready() -> void:
 	_build_collection()
 	_load()
+	for m in collection:
+		discover(m.species_id)
 	if team.is_empty():
 		team = collection.slice(0, MAX_TEAM)
 	team_hp = team_max_hp()
@@ -72,6 +75,7 @@ func _build_level_enemies(level: int) -> Array[MonsterData]:
 	var list: Array[MonsterData] = []
 	for e in LEVELS.get(level, []):
 		list.append(MonsterDB.create(e["id"], int(e.get("lv", 1)), int(e.get("turns", 1))))
+		discover(e["id"])
 	return list
 
 # --- MODE EVENT ---
@@ -86,6 +90,7 @@ func _build_event_wave(wave: int) -> Array[MonsterData]:
 	var list: Array[MonsterData] = []
 	for i in wave:
 		list.append(MonsterDB.create("slime", 1, 2))
+		discover("slime")
 	return list
 
 func next_wave() -> bool:
@@ -116,6 +121,7 @@ func event_loot() -> String:
 	for mon_id in result["monsters"]:
 		collection.append(MonsterDB.create(mon_id))   # rang 0 garanti (défini dans la lib)
 		parts.append(MonsterDB.display_name(mon_id))
+		discover(mon_id)
 
 	save_game()
 	return "🎁 " + " + ".join(parts) if parts.size() > 0 else "Aucun butin cette fois..."
@@ -143,6 +149,10 @@ func gain_team_xp(amount: int) -> void:
 
 # --- FUSION ---
 func fuse(base: MonsterData, fodder: Array) -> int:
+	var cost := fusion_cost(base, fodder)
+	if coins < cost:
+		return -1
+	coins -= cost
 	var gained := 0
 	for f in fodder:
 		if f == base: continue
@@ -153,6 +163,9 @@ func fuse(base: MonsterData, fodder: Array) -> int:
 	team_hp = team_max_hp()
 	save_game()
 	return gained
+
+func fusion_cost(base: MonsterData, fodder: Array) -> int:
+	return 100 * (base.rank + 1) * max(1, fodder.size())
 
 # --- ÉVOLUTION ---
 func get_evolutions(mon: MonsterData) -> Array:
@@ -170,11 +183,15 @@ func can_evolve(mon: MonsterData, rec: Dictionary, fodder: Array) -> String:
 		return "%d monstres à sacrifier requis." % rec["fodder"]
 	if int(materials.get(rec["material"], 0)) < 1:
 		return "Manque : " + LootDB.MATERIALS[rec["material"]]
+	if coins < evolution_cost(mon):
+		return "Manque %d 🪙." % evolution_cost(mon)
 	return ""
 
 func evolve(mon: MonsterData, rec: Dictionary, fodder: Array) -> bool:
 	if can_evolve(mon, rec, fodder) != "":
 		return false
+	coins -= evolution_cost(mon)
+	discover(rec["to_id"])
 	for f in fodder:
 		if f == mon: continue
 		team.erase(f)
@@ -197,6 +214,9 @@ func evolve(mon: MonsterData, rec: Dictionary, fodder: Array) -> bool:
 	save_game()
 	return true
 
+func evolution_cost(mon: MonsterData) -> int:
+	return 1000 * (mon.rank + 1)
+
 # --- SAUVEGARDE (simplifiée : on ne stocke que id + level + xp) ---
 func save_game() -> void:
 	var data := {
@@ -205,6 +225,7 @@ func save_game() -> void:
 		"mine_slots": [], "mine_capacity": mine_capacity, "mine_stored": mine_stored,
 		"mine_progress": mine_progress, "mine_last_ts": mine_last_ts,
 		"mine_slot_count": mine_slot_count, "mine_level": mine_level,
+		"discovered": discovered
 	}
 	for m in collection:
 		data["collection"].append({ "id": m.species_id, "level": m.level, "xp": m.xp })
@@ -247,6 +268,7 @@ func _load() -> void:
 	mine_last_ts    = int(data.get("mine_last_ts", mine_last_ts))
 	mine_slot_count = int(data.get("mine_slot_count", mine_slot_count))
 	mine_level      = int(data.get("mine_level", mine_level))
+	discovered      = data.get("discovered", {})
 	mine_slots.clear()
 	for idx in data.get("mine_slots", []):
 		var mi := int(idx)
@@ -260,6 +282,7 @@ func buy_monster(species_id: String, gem_cost: int) -> String:
 	if gems < gem_cost:
 		return "❌ Pas assez de gemmes !"
 	gems -= gem_cost
+	discover(species_id)
 	collection.append(MonsterDB.create(species_id))
 	save_game()
 	return "✅ %s ajouté à ta collection !" % MonsterDB.display_name(species_id)
@@ -298,6 +321,8 @@ func mine_add(mon: MonsterData) -> bool:
 	update_mine()
 	if mine_slots.size() >= mine_slot_count or mine_slots.has(mon):
 		return false
+	if team.has(mon):
+		return false   # un monstre de l'équipe ne peut pas miner
 	mine_slots.append(mon)
 	save_game()
 	return true
@@ -344,3 +369,12 @@ func _notification(what: int) -> void:
 	or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		update_mine()
 		save_game()
+
+func is_busy(mon: MonsterData) -> bool:
+	return team.has(mon) or mine_slots.has(mon)
+
+func discover(id: String) -> void:
+	discovered[id] = true
+
+func is_discovered(id: String) -> bool:
+	return discovered.has(id)
