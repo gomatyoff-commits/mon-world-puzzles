@@ -96,6 +96,8 @@ func _build_ui() -> void:
 	
 # Crée un widget monstre : { root, bar, turn }
 # hp_on_top = true -> barre de vie AU-DESSUS de l'image (équipe)
+# Crée un widget monstre : { root, bar, turn }
+# hp_on_top = true -> barre de vie AU-DESSUS de l'image (équipe)
 func _make_monster_widget(mon: MonsterData, img_size: int, hp_on_top: bool, with_bar := true) -> Dictionary:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
@@ -106,10 +108,22 @@ func _make_monster_widget(mon: MonsterData, img_size: int, hp_on_top: bool, with
 		bar.max_value = mon.max_hp
 		bar.value = mon.hp
 		bar.show_percentage = false
-		bar.custom_minimum_size = Vector2(img_size, 14)
+		bar.custom_minimum_size = Vector2(img_size, 22)
 		var style := StyleBoxFlat.new()
 		style.bg_color = Elements.COLORS[mon.element]
 		bar.add_theme_stylebox_override("fill", style)
+
+		# PV en chiffres sur la barre
+		var hp_lbl := Label.new()
+		hp_lbl.name = "HpLabel"
+		hp_lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		hp_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hp_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hp_lbl.add_theme_font_size_override("font_size", 16)
+		hp_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		hp_lbl.add_theme_constant_override("outline_size", 4)
+		hp_lbl.text = "%d / %d" % [mon.hp, mon.max_hp]
+		bar.add_child(hp_lbl)
 
 	var img := TextureRect.new()
 	img.texture = mon.texture
@@ -131,8 +145,15 @@ func _make_monster_widget(mon: MonsterData, img_size: int, hp_on_top: bool, with
 	else:
 		box.add_child(img)
 		return { "mon": mon, "root": box, "bar": bar, "turn": null }
-
 func refresh_all() -> void:
+	# ennemis : barre de vie, compteur de tour, masqué si mort
+	for w in enemy_widgets:
+		var e: MonsterData = w["mon"]
+		w["bar"].value = e.hp
+		w["bar"].get_node("HpLabel").text = "%d / %d" % [e.hp, e.max_hp]
+		w["turn"].text = "Tour : " + str(e.turn_counter)
+		w["root"].visible = e.is_alive()
+
 	for w in team_widgets:
 		var m: MonsterData = w["mon"]
 		var lbl: Label = w["skill"]
