@@ -71,7 +71,7 @@ func _refresh() -> void:
 		c.queue_free()
 	for mon in GameManager.collection:
 		if base_mon == null:
-			if GameManager.mine_slots.has(mon):
+			if GameManager.is_working(mon):
 				continue
 		else:
 			if mon != base_mon and GameManager.is_busy(mon):

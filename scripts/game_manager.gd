@@ -44,6 +44,17 @@ var mine_last_ts := 0               # horodatage (temps réel) de la dernière M
 var mine_slot_count := 1            # nombre d'emplacements débloqués
 var mine_level := 1                 # niveau de stockage
 
+# --- ENTRAÎNEMENT ---
+const TRAIN_MAX_SLOTS := 6
+const TRAIN_SLOT_COSTS := [30, 80, 150, 300, 500]   # gemmes pour emplacements 2 à 6
+const TRAIN_XP_PER_LEVEL := 100                      # XP/heure par niveau du centre
+const TRAIN_MAX_LEVEL := 10
+var training_slots: Array[MonsterData] = []
+var training_slot_count := 1
+var training_level := 1
+var train_last_ts := 0
+var train_pending := 0.0      # XP fractionnaire en attente
+
 var game_mode := "story"
 var current_level := 1
 var current_wave := 1
@@ -58,6 +69,7 @@ func _ready() -> void:
 		team = collection.slice(0, MAX_TEAM)
 	team_hp = team_max_hp()
 	update_mine()
+	update_training()
 
 func _build_collection() -> void:
 	collection = [ MonsterDB.create("slime"), MonsterDB.create("slime"), MonsterDB.create("slime") ]
@@ -225,7 +237,9 @@ func save_game() -> void:
 		"mine_slots": [], "mine_capacity": mine_capacity, "mine_stored": mine_stored,
 		"mine_progress": mine_progress, "mine_last_ts": mine_last_ts,
 		"mine_slot_count": mine_slot_count, "mine_level": mine_level,
-		"discovered": discovered
+		"discovered": discovered, "training_slots": [], "training_slot_count": training_slot_count,
+		"training_level": training_level, "train_last_ts": train_last_ts,
+		"train_pending": train_pending,
 	}
 	for m in collection:
 		data["collection"].append({ "id": m.species_id, "level": m.level, "xp": m.xp })
@@ -233,6 +247,8 @@ func save_game() -> void:
 		data["team"].append(collection.find(m))
 	for m in mine_slots:
 		data["mine_slots"].append(collection.find(m))
+	for m in training_slots:
+		data["training_slots"].append(collection.find(m))
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify(data))
 	f.close()
@@ -274,6 +290,15 @@ func _load() -> void:
 		var mi := int(idx)
 		if mi >= 0 and mi < collection.size():
 			mine_slots.append(collection[mi])
+	training_slot_count = int(data.get("training_slot_count", training_slot_count))
+	training_level      = int(data.get("training_level", training_level))
+	train_last_ts       = int(data.get("train_last_ts", train_last_ts))
+	train_pending       = float(data.get("train_pending", train_pending))
+	training_slots.clear()
+	for idx in data.get("training_slots", []):
+		var ti := int(idx)
+		if ti >= 0 and ti < collection.size():
+			training_slots.append(collection[ti])
 
 # --- BOUTIQUE ---
 func buy_monster(species_id: String, gem_cost: int) -> String:
@@ -321,8 +346,8 @@ func mine_add(mon: MonsterData) -> bool:
 	update_mine()
 	if mine_slots.size() >= mine_slot_count or mine_slots.has(mon):
 		return false
-	if team.has(mon):
-		return false   # un monstre de l'équipe ne peut pas miner
+	if team.has(mon) or training_slots.has(mon):
+		return false   # équipe ou entraînement : ne peut pas miner
 	mine_slots.append(mon)
 	save_game()
 	return true
@@ -369,12 +394,88 @@ func _notification(what: int) -> void:
 	or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		update_mine()
 		save_game()
+		update_training()
+
+# Monstre occupé à une tâche (mine ou entraînement)
+func is_working(mon: MonsterData) -> bool:
+	return mine_slots.has(mon) or training_slots.has(mon)
 
 func is_busy(mon: MonsterData) -> bool:
-	return team.has(mon) or mine_slots.has(mon)
+	return team.has(mon) or is_working(mon)
 
 func discover(id: String) -> void:
 	discovered[id] = true
 
 func is_discovered(id: String) -> bool:
 	return discovered.has(id)
+
+# --- ENTRAÎNEMENT ---
+func training_rate() -> int:
+	return TRAIN_XP_PER_LEVEL * training_level
+
+func update_training() -> void:
+	var now := int(Time.get_unix_time_from_system())
+	if train_last_ts == 0:
+		train_last_ts = now
+		return
+	var elapsed_h := float(now - train_last_ts) / 3600.0
+	train_last_ts = now
+	if training_slots.is_empty():
+		train_pending = 0.0
+		return
+	if elapsed_h <= 0.0:
+		return
+	train_pending += training_rate() * elapsed_h
+	var gain := int(train_pending)
+	if gain <= 0:
+		return
+	train_pending -= gain
+	for m in training_slots:
+		m.add_xp(gain)
+
+func training_add(mon: MonsterData) -> bool:
+	update_training()
+	if training_slots.size() >= training_slot_count or is_busy(mon):
+		return false
+	training_slots.append(mon)
+	save_game()
+	return true
+
+func training_remove(mon: MonsterData) -> void:
+	update_training()
+	training_slots.erase(mon)
+	save_game()
+
+func training_slot_unlock_cost() -> int:
+	var idx := training_slot_count - 1
+	if idx >= TRAIN_SLOT_COSTS.size():
+		return -1
+	return TRAIN_SLOT_COSTS[idx]
+
+func unlock_training_slot() -> String:
+	var cost := training_slot_unlock_cost()
+	if cost < 0:
+		return "Nombre d'emplacements maximum atteint."
+	if gems < cost:
+		return "❌ Pas assez de gemmes !"
+	gems -= cost
+	training_slot_count += 1
+	save_game()
+	return "✅ Nouvel emplacement débloqué !"
+
+func training_upgrade_cost() -> int:
+	if training_level >= TRAIN_MAX_LEVEL:
+		return -1
+	return training_level * 50
+
+func upgrade_training() -> String:
+	var cost := training_upgrade_cost()
+	if cost < 0:
+		return "Niveau maximum atteint."
+	if gems < cost:
+		return "❌ Pas assez de gemmes !"
+	update_training()          # on comptabilise l'XP à l'ancien taux d'abord
+	gems -= cost
+	training_level += 1
+	save_game()
+	return "✅ Centre niveau %d → %d XP/h !" % [training_level, training_rate()]

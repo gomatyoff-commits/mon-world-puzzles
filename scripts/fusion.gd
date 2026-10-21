@@ -62,7 +62,7 @@ func _refresh() -> void:
 	for mon in GameManager.collection:
 		if base_mon == null:
 			# Phase sélection : on voit l'équipe, on masque seulement la mine
-			if GameManager.mine_slots.has(mon):
+			if GameManager.is_working(mon):
 				continue
 		else:
 			# Phase sacrifices : on masque équipe + mine (sauf la base sélectionnée)

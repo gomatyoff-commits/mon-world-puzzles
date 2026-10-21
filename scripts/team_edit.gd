@@ -78,8 +78,11 @@ func _make_card(mon: MonsterData) -> Control:
 	var mining := GameManager.mine_slots.has(mon)
 	if in_team:
 		btn.text = "Retirer"
-	elif mining:
+	elif GameManager.mine_slots.has(mon):
 		btn.text = "⛏️ Mine"
+		btn.disabled = true
+	elif GameManager.training_slots.has(mon):
+		btn.text = "🏋️ Entraînement"
 		btn.disabled = true
 	else:
 		btn.text = "Ajouter"
@@ -93,6 +96,9 @@ func _toggle(mon: MonsterData) -> void:
 		GameManager.team.erase(mon)
 	elif GameManager.mine_slots.has(mon):
 		status_label.text = "⛏️ Ce monstre mine : retire-le de la mine d'abord."
+		return
+	elif GameManager.training_slots.has(mon):
+		status_label.text = "🏋️ Ce monstre s'entraîne : retire-le de l'entraînement d'abord."
 		return
 	elif GameManager.team.size() < GameManager.MAX_TEAM:
 		GameManager.team.append(mon)

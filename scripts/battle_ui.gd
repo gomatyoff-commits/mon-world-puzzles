@@ -11,6 +11,10 @@ var result_label: Label
 var team_hp_bar: ProgressBar
 var enemy_row: HBoxContainer
 var wave_label: Label
+var team_widgets: Array = []
+signal skill_pressed(index: int)
+const BALL := 40          # taille de la boule
+const FLIGHT := 0.35      # durée du trajet (secondes)
 
 func _ready() -> void:
 	_build_ui()
@@ -56,7 +60,17 @@ func _build_ui() -> void:
 	add_child(team_row)
 	for m in GameManager.team:
 		var w := _make_monster_widget(m, 90, true, false)     # vie au-dessus
+		var skill_lbl := Label.new()
+		skill_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		skill_lbl.add_theme_font_size_override("font_size", 18)
+		w["root"].add_child(skill_lbl)
+		w["skill"] = skill_lbl
+		var idx := team_widgets.size()
+		w["root"].gui_input.connect(func(ev: InputEvent):
+			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+				skill_pressed.emit(idx))
 		team_row.add_child(w["root"])
+		team_widgets.append(w)
 	
 	# --- BARRE DE VIE COMMUNE de l'équipe (au-dessus des images) ---
 	team_hp_bar = ProgressBar.new()
@@ -119,11 +133,17 @@ func _make_monster_widget(mon: MonsterData, img_size: int, hp_on_top: bool, with
 		return { "mon": mon, "root": box, "bar": bar, "turn": null }
 
 func refresh_all() -> void:
-	for w in enemy_widgets:
-		var e: MonsterData = w["mon"]
-		w["bar"].value = e.hp
-		w["turn"].text = "Tour : " + str(e.turn_counter)
-		w["root"].visible = e.is_alive()
+	for w in team_widgets:
+		var m: MonsterData = w["mon"]
+		var lbl: Label = w["skill"]
+		if m.skill_id == "":
+			lbl.text = ""
+		elif m.skill_cd <= 0:
+			lbl.text = "⚡ PRÊT"
+			lbl.add_theme_color_override("font_color", UIStyle.COL_GOLD)
+		else:
+			lbl.text = "⏳ %d" % m.skill_cd
+			lbl.add_theme_color_override("font_color", Color.WHITE)
 	
 	# barre de vie commune de l'équipe
 	team_hp_bar.max_value = GameManager.team_max_hp()
@@ -193,3 +213,89 @@ func rebuild_enemies() -> void:
 		var wd := _make_monster_widget(e, 150, false, true)
 		enemy_row.add_child(wd["root"])
 		enemy_widgets.append(wd)
+
+# attacks[i] = liste des attaques du monstre i (true = zone, false = 1 cible)
+func play_attacks(attacks: Array) -> void:
+	# De droite à gauche
+	for i in range(team_widgets.size() - 1, -1, -1):
+		if i >= attacks.size() or attacks[i].is_empty():
+			continue
+		var w: Dictionary = team_widgets[i]
+		var mon: MonsterData = w["mon"]
+		var root: Control = w["root"]
+		var from: Vector2 = root.get_global_rect().get_center()
+		_hop(root)
+		for is_zone in attacks[i]:
+			var targets := _alive_enemy_widgets()
+			if not is_zone:
+				targets = targets.slice(0, 1)
+			for t in targets:
+				_shoot(from, t["root"], Elements.COLORS[mon.element])
+			await get_tree().create_timer(0.1).timeout   # écart entre 2 boules
+		await get_tree().create_timer(FLIGHT).timeout    # attend l'impact de la dernière
+
+func _alive_enemy_widgets() -> Array:
+	var res: Array = []
+	for w in enemy_widgets:
+		if w["mon"].is_alive():
+			res.append(w)
+	return res
+
+func _shoot(from: Vector2, target: Control, col: Color, s: int = BALL) -> void:
+	var ball := Panel.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = col
+	st.set_corner_radius_all(s / 2)
+	st.shadow_color = Color(col, 0.6)     # halo lumineux
+	st.shadow_size = 12
+	ball.add_theme_stylebox_override("panel", st)
+	ball.size = Vector2(s, s)
+	ball.position = from - ball.size / 2.0
+	ball.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(ball)
+
+	var to := target.get_global_rect().get_center() - ball.size / 2.0
+	var tw := create_tween()
+	tw.tween_property(ball, "position", to, FLIGHT)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		ball.queue_free()
+		_flash(target))
+
+# Petit saut de l'attaquant
+func _hop(node: Control) -> void:
+	node.pivot_offset = node.size / 2.0
+	var tw := create_tween()
+	tw.tween_property(node, "scale", Vector2(1.15, 1.15), 0.08)
+	tw.tween_property(node, "scale", Vector2.ONE, 0.12)
+
+# Flash blanc + secousse de l'ennemi touché
+func _flash(node: Control) -> void:
+	node.pivot_offset = node.size / 2.0
+	node.modulate = Color(2.5, 2.5, 2.5)
+	var tw := create_tween()
+	tw.tween_property(node, "modulate", Color.WHITE, 0.15)
+	var tw2 := create_tween()
+	tw2.tween_property(node, "scale", Vector2(0.9, 0.9), 0.05)
+	tw2.tween_property(node, "scale", Vector2.ONE, 0.1)
+
+# Affiche un texte au centre (nom de compétence...)
+func show_text(t: String) -> void:
+	combo_label.text = t
+	combo_label.scale = Vector2(1.4, 1.4)
+	combo_label.pivot_offset = combo_label.size / 2.0
+	var tw := create_tween()
+	tw.tween_property(combo_label, "scale", Vector2.ONE, 0.25)\
+	  .set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+# Animation de compétence : grosse boule vers la cible
+func play_skill(index: int, target: MonsterData) -> void:
+	var w: Dictionary = team_widgets[index]
+	var mon: MonsterData = w["mon"]
+	for ew in enemy_widgets:
+		if ew["mon"] == target:
+			var from: Vector2 = w["root"].get_global_rect().get_center()
+			_hop(w["root"])
+			_shoot(from, ew["root"], Elements.COLORS[mon.element], 80)
+			break
+	await get_tree().create_timer(FLIGHT).timeout

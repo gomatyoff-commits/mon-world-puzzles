@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://bhswuta41smb3"]
+
+[ext_resource type="Script" uid="uid://bnqw1qyei032u" path="res://scripts/training.gd" id="1_32ipj"]
+
+[node name="TrainingMenu" type="Node2D" unique_id=294113736]
+
+[node name="Control" type="Control" parent="." unique_id=1530655245]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_32ipj")

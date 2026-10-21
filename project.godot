@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 Elements="*uid://dlkn4nh031fpq"
 MonsterDB="*uid://b7pxm08w5j020"
 LootDB="*uid://b2ciic5qs4it8"
+SkillDB="*uid://dv231gagsx13j"
 GameManager="*uid://ckmcowpseo53s"
 
 [display]

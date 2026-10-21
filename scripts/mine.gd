@@ -145,7 +145,7 @@ func _open_picker() -> void:
 
 	var any := false
 	for mon in GameManager.collection:
-		if GameManager.mine_slots.has(mon) or GameManager.team.has(mon):
+		if GameManager.is_busy(mon):
 			continue
 		any = true
 		grid.add_child(_mine_card(mon))

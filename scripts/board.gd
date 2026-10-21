@@ -25,6 +25,11 @@ func _ready() -> void:
 	_build_grid()
 	_center_board_bottom()
 	queue_redraw()
+	# Compétences : chargement complet au début du combat
+	for m in GameManager.team:
+		m.skill_cd = SkillDB.cooldown(m.skill_id)
+	ui.skill_pressed.connect(_use_skill)
+	ui.refresh_all.call_deferred()
 
 func _draw() -> void:
 	var board_w := COLS * CELL
@@ -86,7 +91,7 @@ func grid_to_pixel(p: Vector2i) -> Vector2:
 	return Vector2(p.x * CELL + CELL / 2.0, p.y * CELL + CELL / 2.0)
 
 func pixel_to_grid(pos: Vector2) -> Vector2i:
-	return Vector2i(int(pos.x / CELL), int(pos.y / CELL))
+	return Vector2i(floori(pos.x / CELL), floori(pos.y / CELL))
 
 func in_bounds(p: Vector2i) -> bool:
 	return p.x >= 0 and p.x < COLS and p.y >= 0 and p.y < ROWS
@@ -299,6 +304,9 @@ func resolve_matches() -> void:
 	var combo_count := 0
 	var dmg_single := {}     # dégâts sur 1 seul ennemi
 	var dmg_all := {}        # dégâts de ZONE (groupes de 5+) -> tous les ennemis
+	var attacks: Array = []  # attacks[i] = attaques du monstre i (true = zone)
+	for i in GameManager.team.size():
+		attacks.append([])
 
 	while true:
 		var groups := find_match_groups()
@@ -313,16 +321,20 @@ func resolve_matches() -> void:
 				print("Combo n°", combo_count, " : ", nb, " orbes ", Elements.NAMES[elem])
 
 			# 5 orbes ou plus détruits ensemble -> attaque de ZONE
-			var bucket: Dictionary = dmg_all if nb >= 5 else dmg_single
+			var is_zone := nb >= 5
+			var bucket: Dictionary = dmg_all if is_zone else dmg_single
 
-			for m in GameManager.team:
+			for i in GameManager.team.size():
+				var m: MonsterData = GameManager.team[i]
 				if GameManager.team_hp <= 0:
 					continue
 				var raw: float = (1.0 + (nb - 3) * 0.25) * m.atk
 				if m.element == elem:
 					bucket[elem] = bucket.get(elem, 0.0) + raw
+					attacks[i].append(is_zone)
 				elif m.element == Elements.E.NEUTRAL:
 					bucket[Elements.E.NEUTRAL] = bucket.get(Elements.E.NEUTRAL, 0.0) + raw
+					attacks[i].append(is_zone)
 
 		var all_cells: Array[Vector2i] = []
 		for group in groups:
@@ -338,10 +350,17 @@ func resolve_matches() -> void:
 	if combo_count >= 4:
 		combo_mult = 1.0 + (combo_count - 3) * 0.1
 
+	ui.show_combo(combo_count)
+	await ui.play_attacks(attacks)                 # animation des boules
+
 	_apply_damage_single(dmg_single, combo_mult)   # 1 ennemi
 	_apply_damage_all(dmg_all, combo_mult)         # tous les ennemis (zone)
 
-	ui.show_combo(combo_count)
+	# Un tour de plus : les compétences se rechargent
+	for m in GameManager.team:
+		if m.skill_cd > 0:
+			m.skill_cd -= 1
+	
 	ui.refresh_all()
 	_end_player_turn()
 	is_resolving = false
@@ -367,9 +386,9 @@ func _deal(target: MonsterData, dmg: Dictionary, combo_mult: float) -> void:
 	for elem in dmg.keys():
 		total += dmg[elem] * Elements.get_multiplier(elem, target.element)
 	total *= combo_mult
-	var dealt := int(total) - target.defense
-	if dealt < 1:
-		dealt = 1
+	_hit(target, max(1, int(total) - target.defense))
+
+func _hit(target: MonsterData, dealt: int) -> void:
 	var was_alive := target.is_alive()
 	target.hp = max(0, target.hp - dealt)
 	if was_alive and not target.is_alive():
@@ -437,3 +456,32 @@ func _enemy_attack(e: MonsterData) -> void:
 
 func _can_play() -> bool:
 	return not is_resolving and not battle_over
+
+# --- COMPÉTENCES ---
+func _use_skill(i: int) -> void:
+	if not _can_play() or is_moving or i >= GameManager.team.size():
+		return
+	var m: MonsterData = GameManager.team[i]
+	if m.skill_id == "" or m.skill_cd > 0:
+		return
+	var target := _first_alive_enemy()
+	if target == null:
+		return
+
+	is_resolving = true                      # bloque le plateau pendant l'animation
+	var sk := SkillDB.get_skill(m.skill_id)
+	ui.show_text("✨ %s !" % SkillDB.display_name(m.skill_id, m.element))
+	await ui.play_skill(i, target)
+
+	match sk["type"]:
+		"damage_single":
+			var dmg := m.atk * float(sk["mult"]) * Elements.get_multiplier(m.element, target.element)
+			_hit(target, max(1, int(dmg)))
+
+	m.skill_cd = SkillDB.cooldown(m.skill_id)
+	ui.refresh_all()
+	is_resolving = false
+
+	# Ennemis tous morts -> vague suivante / victoire (sans tour ennemi)
+	if _first_alive_enemy() == null:
+		_end_player_turn()

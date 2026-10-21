@@ -18,9 +18,10 @@ func _ready() -> void:
 	col.size = Vector2(vp.x * 0.7, vp.y * 0.4)
 	add_child(col)
 
-	_add(col, "⬆️ Monter de niveau", UIStyle.COL_RED,  "res://scenes/FusionMenu.tscn")
-	_add(col, "🔮 Évolution",        UIStyle.COL_GOLD, "res://scenes/EvolutionMenu.tscn")
-	_add(col, "🎒 Inventaire",       UIStyle.COL_BLUE, "res://scenes/InventoryMenu.tscn")
+	_add(col, "⬆️ Monter de niveau", UIStyle.COL_RED,   "res://scenes/FusionMenu.tscn")
+	_add(col, "🔮 Évolution",        UIStyle.COL_GOLD,  "res://scenes/EvolutionMenu.tscn")
+	_add(col, "🏋️ Entraînement",     UIStyle.COL_GREEN, "res://scenes/TrainingMenu.tscn")
+	_add(col, "🎒 Inventaire",       UIStyle.COL_BLUE,  "res://scenes/InventoryMenu.tscn")
 
 	var back := UIStyle.back_button(func():
 		get_tree().change_scene_to_file("res://scenes/MainMenu.tscn"))

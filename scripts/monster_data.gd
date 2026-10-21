@@ -14,6 +14,8 @@ var texture: Texture2D
 var turn_counter: int
 var level: int = 1
 var xp: int = 0
+var skill_id: String = ""   # id dans SkillDB
+var skill_cd: int = 0       # tours restants avant que la compétence soit prête (combat)
 var hp: int = 0
 var rank: int = 0
 var species_id: String = ""
