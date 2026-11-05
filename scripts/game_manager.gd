@@ -3,25 +3,8 @@ extends Node
 const MAX_TEAM := 6
 const SAVE_PATH := "user://save.json"
 
-# --- NIVEAUX : juste des IDs + niveau + tours. Créer un niveau = 1 ligne ! ---
-const LEVELS := {
-	1: [ {"id": "slime_feu", "lv": 6, "turns": 3} ],
-	2: [ {"id": "slime_eau", "lv": 8, "turns": 3}, {"id": "slime_terre", "lv": 8, "turns": 4} ],
-	3: [ {"id": "slime_vent", "lv": 10, "turns": 3}, {"id": "slime_lumiere", "lv": 10, "turns": 3}, {"id": "slime_tenebre", "lv": 12, "turns": 4} ],
-}
-var NB_LEVELS := LEVELS.size()
-
-# --- ÉVOLUTIONS : par species_id, cible = un autre id de la bibliothèque ---
-var evolutions := {
-	"slime": [
-		{ "to_id": "slime_feu",     "min_level": 10, "fodder": 1, "material": "cristal_feu" },
-		{ "to_id": "slime_eau",     "min_level": 10, "fodder": 1, "material": "cristal_eau" },
-		{ "to_id": "slime_terre",   "min_level": 10, "fodder": 1, "material": "cristal_terre" },
-		{ "to_id": "slime_vent",    "min_level": 10, "fodder": 1, "material": "cristal_vent" },
-		{ "to_id": "slime_lumiere", "min_level": 10, "fodder": 1, "material": "cristal_lumiere" },
-		{ "to_id": "slime_tenebre", "min_level": 10, "fodder": 1, "material": "cristal_tenebre" },
-	],
-}
+# Niveaux -> LevelDB.gd | Évolutions -> EvolutionDB.gd
+var NB_LEVELS := LevelDB.count()
 
 var collection: Array[MonsterData] = []
 var team: Array[MonsterData] = []
@@ -85,7 +68,7 @@ func start_level(level: int) -> void:
 
 func _build_level_enemies(level: int) -> Array[MonsterData]:
 	var list: Array[MonsterData] = []
-	for e in LEVELS.get(level, []):
+	for e in LevelDB.get_enemies(level):
 		list.append(MonsterDB.create(e["id"], int(e.get("lv", 1)), int(e.get("turns", 1))))
 		discover(e["id"])
 	return list
@@ -181,7 +164,7 @@ func fusion_cost(base: MonsterData, fodder: Array) -> int:
 
 # --- ÉVOLUTION ---
 func get_evolutions(mon: MonsterData) -> Array:
-	return evolutions.get(mon.species_id, [])
+	return EvolutionDB.get_for(mon.species_id)
 
 func evo_name(rec: Dictionary) -> String:
 	return MonsterDB.display_name(rec["to_id"])

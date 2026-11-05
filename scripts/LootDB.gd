@@ -7,6 +7,7 @@ const MATERIALS := {
 	"cristal_vent": "Cristal de Vent",
 	"cristal_lumiere": "Cristal de Lumière",
 	"cristal_tenebre": "Cristal de Ténèbre",
+	"embryon": "Embryon",
 }
 
 # Tables de butin par identifiant (faciles à créer/étendre)

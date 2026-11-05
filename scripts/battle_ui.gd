@@ -96,8 +96,6 @@ func _build_ui() -> void:
 	
 # Crée un widget monstre : { root, bar, turn }
 # hp_on_top = true -> barre de vie AU-DESSUS de l'image (équipe)
-# Crée un widget monstre : { root, bar, turn }
-# hp_on_top = true -> barre de vie AU-DESSUS de l'image (équipe)
 func _make_monster_widget(mon: MonsterData, img_size: int, hp_on_top: bool, with_bar := true) -> Dictionary:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
@@ -187,44 +185,111 @@ func show_combo(count: int) -> void:
 	tw.tween_property(combo_label, "scale", Vector2.ONE, 0.25)\
 	  .set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
+# --- ÉCRAN DE FIN DE COMBAT ---
+# Fond sombre + panneau centré : titre, récompenses (lisibles), boutons.
 func show_result(victory: bool, extra_text := "") -> void:
-	result_label.visible = true
-	result_label.text = ("🎉 VICTOIRE !" if victory else "💀 DÉFAITE...") + ("\n" + extra_text if extra_text != "" else "")
-
 	var vp := get_viewport().get_visible_rect().size
+	combo_label.text = ""
+	result_label.visible = false
+
+	# Fond sombre plein écran (bloque aussi les clics sur le plateau)
+	var overlay := ColorRect.new()
+	overlay.color = Color(0, 0, 0, 0.7)
+	overlay.position = Vector2.ZERO
+	overlay.size = vp
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	# Panneau centré
+	var panel := PanelContainer.new()
+	var ps := StyleBoxFlat.new()
+	ps.bg_color = Color(UIStyle.COL_DARK, 0.97)
+	ps.set_corner_radius_all(24)
+	ps.set_border_width_all(4)
+	ps.border_color = UIStyle.COL_GOLD if victory else UIStyle.COL_RED
+	ps.shadow_color = Color(0, 0, 0, 0.6)
+	ps.shadow_size = 20
+	ps.content_margin_left = 40
+	ps.content_margin_right = 40
+	ps.content_margin_top = 36
+	ps.content_margin_bottom = 36
+	panel.add_theme_stylebox_override("panel", ps)
+	panel.custom_minimum_size = Vector2(vp.x * 0.8, 0)
+	overlay.add_child(panel)
+
 	var col := VBoxContainer.new()
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_theme_constant_override("separation", 16)
-	col.position = Vector2(vp.x * 0.3, vp.y * 0.45)
-	col.size = Vector2(vp.x * 0.4, 200)
-	add_child(col)
+	col.add_theme_constant_override("separation", 20)
+	panel.add_child(col)
 
-	# Niveau suivant (seulement si victoire et qu'il en reste)
-	if victory and GameManager.current_level < GameManager.NB_LEVELS:
-		var next_btn := Button.new()
-		next_btn.text = "Niveau suivant"
-		next_btn.custom_minimum_size = Vector2(0, 60)
-		next_btn.pressed.connect(func():
+	# Titre
+	var title := Label.new()
+	title.text = "🎉 VICTOIRE !" if victory else "💀 DÉFAITE..."
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 72)
+	title.add_theme_color_override("font_color", UIStyle.COL_GOLD if victory else UIStyle.COL_RED)
+	title.add_theme_color_override("font_outline_color", Color.BLACK)
+	title.add_theme_constant_override("outline_size", 10)
+	col.add_child(title)
+
+	# Récompenses
+	if extra_text != "":
+		var sep := HSeparator.new()
+		col.add_child(sep)
+
+		var rew_title := Label.new()
+		rew_title.text = "Récompenses"
+		rew_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		rew_title.add_theme_font_size_override("font_size", 30)
+		rew_title.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
+		col.add_child(rew_title)
+
+		var rewards := Label.new()
+		rewards.text = extra_text
+		rewards.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		rewards.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # passe à la ligne si trop long
+		rewards.add_theme_font_size_override("font_size", 40)
+		rewards.add_theme_color_override("font_color", Color.WHITE)
+		rewards.add_theme_color_override("font_outline_color", Color.BLACK)
+		rewards.add_theme_constant_override("outline_size", 6)
+		rewards.add_theme_constant_override("line_spacing", 8)
+		col.add_child(rewards)
+
+	# Espace avant les boutons
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 10)
+	col.add_child(spacer)
+
+	var is_event := GameManager.game_mode == "event"
+
+	# Niveau suivant (mode Histoire seulement, si victoire et qu'il en reste)
+	if victory and not is_event and GameManager.current_level < GameManager.NB_LEVELS:
+		col.add_child(UIStyle.menu_button("Niveau suivant", UIStyle.COL_GREEN, func():
 			GameManager.start_level(GameManager.current_level + 1)
-			get_tree().change_scene_to_file("res://scenes/Main.tscn"))
-		col.add_child(next_btn)
+			get_tree().change_scene_to_file("res://scenes/Main.tscn")))
 
-	# Rejouer le niveau
-	var retry_btn := Button.new()
-	retry_btn.text = "Rejouer"
-	retry_btn.custom_minimum_size = Vector2(0, 60)
-	retry_btn.pressed.connect(func():
-		GameManager.start_level(GameManager.current_level)
-		get_tree().change_scene_to_file("res://scenes/Main.tscn"))
-	col.add_child(retry_btn)
+	# Rejouer : relance l'event en mode Event, sinon le même niveau
+	col.add_child(UIStyle.menu_button("Rejouer l'event" if is_event else "Rejouer", UIStyle.COL_BLUE, func():
+		if is_event:
+			GameManager.start_event()
+		else:
+			GameManager.start_level(GameManager.current_level)
+		get_tree().change_scene_to_file("res://scenes/Main.tscn")))
 
 	# Retour au menu
-	var menu_btn := Button.new()
-	menu_btn.text = "Menu principal"
-	menu_btn.custom_minimum_size = Vector2(0, 60)
-	menu_btn.pressed.connect(func():
-		get_tree().change_scene_to_file("res://scenes/MainMenu.tscn"))
-	col.add_child(menu_btn)
+	col.add_child(UIStyle.menu_button("Menu principal", UIStyle.COL_GREY, func():
+		get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")))
+
+	# Centrage une fois la taille du panneau calculée, puis petite apparition
+	await get_tree().process_frame
+	panel.size = panel.get_combined_minimum_size()
+	panel.position = (vp - panel.size) / 2.0
+	panel.pivot_offset = panel.size / 2.0
+	panel.scale = Vector2(0.6, 0.6)
+	overlay.modulate.a = 0.0
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(overlay, "modulate:a", 1.0, 0.2)
+	tw.tween_property(panel, "scale", Vector2.ONE, 0.3)\
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func rebuild_enemies() -> void:
 	for w in enemy_widgets:

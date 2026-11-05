@@ -21,6 +21,8 @@ Elements="*uid://dlkn4nh031fpq"
 MonsterDB="*uid://b7pxm08w5j020"
 LootDB="*uid://b2ciic5qs4it8"
 SkillDB="*uid://dv231gagsx13j"
+LevelDB="*uid://b8bxuyfodkcu3"
+EvolutionDB="*uid://c4xnjxqe7xgnu"
 GameManager="*uid://ckmcowpseo53s"
 
 [display]
@@ -29,6 +31,10 @@ window/size/viewport_width=1080
 window/size/viewport_height=1920
 window/size/mode=4
 window/stretch/mode="canvas_items"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
 
 [input_devices]
 
