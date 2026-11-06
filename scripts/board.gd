@@ -303,11 +303,12 @@ func resolve_matches() -> void:
 	is_resolving = true
 
 	var combo_count := 0
-	var dmg_single := {}     # dégâts sur 1 seul ennemi
-	var dmg_all := {}        # dégâts de ZONE (groupes de 5+) -> tous les ennemis
-	var attacks: Array = []  # attacks[i] = attaques du monstre i (true = zone)
+	# Par monstre de l'équipe : dégâts cumulés de TOUS ses combos + attaque de zone ?
+	var raw_dmg: Array[float] = []
+	var is_zone: Array[bool] = []
 	for i in GameManager.team.size():
-		attacks.append([])
+		raw_dmg.append(0.0)
+		is_zone.append(false)
 
 	while true:
 		var groups := find_match_groups()
@@ -321,21 +322,13 @@ func resolve_matches() -> void:
 			if DEBUG:
 				print("Combo n°", combo_count, " : ", nb, " orbes ", Elements.NAMES[elem])
 
-			# 5 orbes ou plus détruits ensemble -> attaque de ZONE
-			var is_zone := nb >= 5
-			var bucket: Dictionary = dmg_all if is_zone else dmg_single
-
 			for i in GameManager.team.size():
 				var m: MonsterData = GameManager.team[i]
-				if GameManager.team_hp <= 0:
+				if m.element != elem and m.element != Elements.E.NEUTRAL:
 					continue
-				var raw: float = (1.0 + (nb - 3) * 0.25) * m.atk
-				if m.element == elem:
-					bucket[elem] = bucket.get(elem, 0.0) + raw
-					attacks[i].append(is_zone)
-				elif m.element == Elements.E.NEUTRAL:
-					bucket[Elements.E.NEUTRAL] = bucket.get(Elements.E.NEUTRAL, 0.0) + raw
-					attacks[i].append(is_zone)
+				raw_dmg[i] += (1.0 + (nb - 3) * 0.25) * m.atk
+				if nb >= 5:                     # 5 orbes ou plus -> son attaque devient de ZONE
+					is_zone[i] = true
 
 		var all_cells: Array[Vector2i] = []
 		for group in groups:
@@ -350,12 +343,27 @@ func resolve_matches() -> void:
 	var combo_mult := 1.0
 	if combo_count >= 4:
 		combo_mult = 1.0 + (combo_count - 3) * 0.1
-
 	ui.show_combo(combo_count)
-	await ui.play_attacks(attacks)                 # animation des boules
 
-	_apply_damage_single(dmg_single, combo_mult)   # 1 ennemi
-	_apply_damage_all(dmg_all, combo_mult)         # tous les ennemis (zone)
+	# --- UNE seule attaque par monstre (de droite à gauche) ---
+	for i in range(GameManager.team.size() - 1, -1, -1):
+		if raw_dmg[i] <= 0.0:
+			continue
+		var m: MonsterData = GameManager.team[i]
+		var targets: Array = []
+		if is_zone[i]:
+			targets = _alive_enemies()
+		else:
+			var t := _best_target(m)
+			if t != null:
+				targets = [t]
+		if targets.is_empty():
+			break                           # plus aucun ennemi vivant
+		await ui.play_attack(i, targets, is_zone[i])
+		for t in targets:
+			var dmg := raw_dmg[i] * Elements.get_multiplier(m.element, t.element) * combo_mult
+			_hit(t, max(1, int(dmg) - t.defense))
+		ui.refresh_all()                    # un ennemi mort disparaît -> le suivant vise ailleurs
 
 	# Un tour de plus : les compétences se rechargent
 	for m in GameManager.team:
@@ -366,28 +374,26 @@ func resolve_matches() -> void:
 	_end_player_turn()
 	is_resolving = false
 
-# Dégâts sur le premier ennemi vivant
-func _apply_damage_single(dmg: Dictionary, combo_mult: float) -> void:
-	var target: MonsterData = _first_alive_enemy()
-	if target == null:
-		return
-	_deal(target, dmg, combo_mult)
-
-# Dégâts de ZONE : touche TOUS les ennemis vivants
-func _apply_damage_all(dmg: Dictionary, combo_mult: float) -> void:
-	if dmg.is_empty():
-		return
+func _alive_enemies() -> Array:
+	var res: Array = []
 	for e in GameManager.enemies:
 		if e.is_alive():
-			_deal(e, dmg, combo_mult)
+			res.append(e)
+	return res
 
-# Applique les dégâts à une cible (table élémentaire + combo + défense, min 1)
-func _deal(target: MonsterData, dmg: Dictionary, combo_mult: float) -> void:
-	var total := 0.0
-	for elem in dmg.keys():
-		total += dmg[elem] * Elements.get_multiplier(elem, target.element)
-	total *= combo_mult
-	_hit(target, max(1, int(total) - target.defense))
+# Cible prioritaire : l'ennemi vivant sur lequel l'attaquant a le meilleur
+# multiplicateur d'élément (avantage > neutre > désavantage). À égalité : le premier.
+func _best_target(attacker: MonsterData) -> MonsterData:
+	var best: MonsterData = null
+	var best_mult := -1.0
+	for e in GameManager.enemies:
+		if not e.is_alive():
+			continue
+		var mult := Elements.get_multiplier(attacker.element, e.element)
+		if mult > best_mult:
+			best_mult = mult
+			best = e
+	return best
 
 func _hit(target: MonsterData, dealt: int) -> void:
 	var was_alive := target.is_alive()
@@ -417,6 +423,8 @@ func _end_player_turn() -> void:
 			return                      # le combat continue (vague suivante)
 
 		# combat terminé
+		if GameManager.game_mode == "story":   # débloque le niveau suivant
+			GameManager.mark_cleared(GameManager.current_world, GameManager.current_level)
 		var share := GameManager.gain_team_xp(xp_earned)   # XP partagée entre l'équipe
 		var extra := _xp_text(share) + _loot_text()
 		GameManager.save_game()
@@ -462,7 +470,7 @@ func _use_skill(i: int) -> void:
 	var m: MonsterData = GameManager.team[i]
 	if m.skill_id == "" or m.skill_cd > 0:
 		return
-	var target := _first_alive_enemy()
+	var target := _best_target(m)          # ennemi sur lequel il a l'avantage
 	if target == null:
 		return
 

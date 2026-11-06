@@ -24,16 +24,19 @@ func _ready() -> void:
 	_gems_label.size = Vector2(vp.x, 40)
 	add_child(_gems_label)
 
-	# Carte article : Slime Rang 0
-	var card := VBoxContainer.new()
+	# Carte article : Slime Rang 0 (panneau centré, largeur fixe)
+	var card_w := vp.x * 0.6
+	var parts := UICards.card(UIStyle.COL_GOLD, Vector2(card_w, 0))
+	var panel: PanelContainer = parts[0]
+	var card: VBoxContainer = parts[1]
 	card.add_theme_constant_override("separation", 14)
-	card.position = Vector2(vp.x * 0.2, vp.y * 0.28)
-	card.size = Vector2(vp.x * 0.6, vp.y * 0.35)
-	add_child(card)
+	panel.position = Vector2((vp.x - card_w) / 2.0, vp.y * 0.28)
+	add_child(panel)
 
 	var icon := TextureRect.new()
 	icon.texture = load(MonsterDB.species["slime"]["tex"])
-	icon.custom_minimum_size = Vector2(0, 140)
+	icon.custom_minimum_size = Vector2(0, 200)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE     # sinon l'image garde sa taille d'origine
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	card.add_child(icon)
 

@@ -3,8 +3,7 @@ extends Node
 const MAX_TEAM := 6
 const SAVE_PATH := "user://save.json"
 
-# Niveaux -> LevelDB.gd | Évolutions -> EvolutionDB.gd
-var NB_LEVELS := LevelDB.count()
+# Mondes/niveaux -> LevelDB.gd | Évolutions -> EvolutionDB.gd
 
 var collection: Array[MonsterData] = []
 var team: Array[MonsterData] = []
@@ -39,7 +38,9 @@ var train_last_ts := 0
 var train_pending := 0.0      # XP fractionnaire en attente
 
 var game_mode := "story"
+var current_world := 1
 var current_level := 1
+var cleared := {}   # niveaux terminés : { "monde-niveau": true }
 var current_wave := 1
 var total_waves := 1
 
@@ -57,22 +58,58 @@ func _ready() -> void:
 func _build_collection() -> void:
 	collection = [ MonsterDB.create("slime"), MonsterDB.create("slime"), MonsterDB.create("slime") ]
 
-# --- MODE HISTOIRE (par vagues, monstres tirés au hasard dans LevelDB) ---
-func start_level(level: int) -> void:
+# --- MODE HISTOIRE : mondes > niveaux > vagues (données dans LevelDB) ---
+func start_level(world: int, level: int) -> void:
 	game_mode = "story"
+	current_world = world
 	current_level = level
-	total_waves = LevelDB.wave_count(level)
+	total_waves = LevelDB.wave_count(world, level)
 	current_wave = 1
-	reset_battle_loot()
 	team_hp = team_max_hp()
-	enemies = _build_level_wave(level, 1)
+	enemies = _build_level_wave(world, level, 1)
 
-func _build_level_wave(level: int, wave: int) -> Array[MonsterData]:
+func _build_level_wave(world: int, level: int, wave: int) -> Array[MonsterData]:
 	var list: Array[MonsterData] = []
-	for e in LevelDB.roll_wave(level, wave):
+	for e in LevelDB.roll_wave(world, level, wave):
 		list.append(MonsterDB.create(e["id"], int(e.get("lv", 1)), int(e.get("turns", 1))))
 		discover(e["id"])
 	return list
+
+# --- PROGRESSION (sauvegardée) ---
+# cleared = { "monde-niveau": true } pour chaque niveau terminé
+func _level_key(world: int, level: int) -> String:
+	return "%d-%d" % [world, level]
+
+func mark_cleared(world: int, level: int) -> void:
+	cleared[_level_key(world, level)] = true
+
+func is_cleared(world: int, level: int) -> bool:
+	return cleared.has(_level_key(world, level))
+
+# Niveau jouable : le 1-1 toujours ; sinon il faut avoir fini le précédent
+# (dans le même monde), ou le DERNIER niveau du monde d'avant pour un niveau 1.
+func is_level_unlocked(world: int, level: int) -> bool:
+	if not LevelDB.has(world, level):
+		return false
+	if level > 1:
+		return is_cleared(world, level - 1)
+	if world > 1:
+		return is_world_cleared(world - 1)
+	return true
+
+func is_world_unlocked(world: int) -> bool:
+	return is_level_unlocked(world, 1)
+
+func is_world_cleared(world: int) -> bool:
+	return is_cleared(world, LevelDB.level_count(world))
+
+# Nombre de niveaux terminés dans un monde
+func cleared_count(world: int) -> int:
+	var n := 0
+	for l in range(1, LevelDB.level_count(world) + 1):
+		if is_cleared(world, l):
+			n += 1
+	return n
 
 # --- MODE EVENT ---
 func start_event() -> void:
@@ -94,7 +131,7 @@ func next_wave() -> bool:
 	if current_wave >= total_waves:
 		return false
 	current_wave += 1
-	enemies = _build_event_wave(current_wave) if game_mode == "event" else _build_level_wave(current_level, current_wave)
+	enemies = _build_event_wave(current_wave) if game_mode == "event" else _build_level_wave(current_world, current_level, current_wave)
 	return true
 
 # --- LOOT (via LootDB) ---
@@ -252,6 +289,7 @@ func save_game() -> void:
 		"discovered": discovered, "training_slots": [], "training_slot_count": training_slot_count,
 		"training_level": training_level, "train_last_ts": train_last_ts,
 		"train_pending": train_pending,
+		"cleared": cleared,
 	}
 	for m in collection:
 		data["collection"].append({ "id": m.species_id, "level": m.level, "xp": m.xp })
@@ -297,6 +335,7 @@ func _load() -> void:
 	mine_slot_count = int(data.get("mine_slot_count", mine_slot_count))
 	mine_level      = int(data.get("mine_level", mine_level))
 	discovered      = data.get("discovered", {})
+	cleared         = data.get("cleared", {})
 	mine_slots.clear()
 	for idx in data.get("mine_slots", []):
 		var mi := int(idx)

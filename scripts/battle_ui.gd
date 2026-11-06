@@ -261,10 +261,12 @@ func show_result(victory: bool, extra_text := "") -> void:
 
 	var is_event := GameManager.game_mode == "event"
 
-	# Niveau suivant (mode Histoire seulement, si victoire et qu'il en reste)
-	if victory and not is_event and GameManager.current_level < GameManager.NB_LEVELS:
-		col.add_child(UIStyle.menu_button("Niveau suivant", UIStyle.COL_GREEN, func():
-			GameManager.start_level(GameManager.current_level + 1)
+	# Niveau suivant (mode Histoire, si victoire et qu'il en reste ; peut changer de monde)
+	var nxt := LevelDB.next_level(GameManager.current_world, GameManager.current_level)
+	if victory and not is_event and nxt.x > 0:
+		var label := "Niveau suivant" if nxt.x == GameManager.current_world else "🌍 Monde suivant"
+		col.add_child(UIStyle.menu_button(label, UIStyle.COL_GREEN, func():
+			GameManager.start_level(nxt.x, nxt.y)
 			get_tree().change_scene_to_file("res://scenes/Main.tscn")))
 
 	# Rejouer : relance l'event en mode Event, sinon le même niveau
@@ -272,7 +274,7 @@ func show_result(victory: bool, extra_text := "") -> void:
 		if is_event:
 			GameManager.start_event()
 		else:
-			GameManager.start_level(GameManager.current_level)
+			GameManager.start_level(GameManager.current_world, GameManager.current_level)
 		get_tree().change_scene_to_file("res://scenes/Main.tscn")))
 
 	# Retour au menu
@@ -300,26 +302,20 @@ func rebuild_enemies() -> void:
 		enemy_row.add_child(wd["root"])
 		enemy_widgets.append(wd)
 
-# attacks[i] = liste des attaques du monstre i (true = zone, false = 1 cible)
-func play_attacks(attacks: Array) -> void:
-	# De droite à gauche
-	for i in range(team_widgets.size() - 1, -1, -1):
-		if i >= attacks.size() or attacks[i].is_empty():
-			continue
-		var w: Dictionary = team_widgets[i]
-		var mon: MonsterData = w["mon"]
-		var root: Control = w["root"]
-		var from: Vector2 = root.get_global_rect().get_center()
-		_hop(root)
-		for is_zone in attacks[i]:
-			var targets := _alive_enemy_widgets()
-			if not is_zone:
-				targets = targets.slice(0, 1)
-			for t in targets:
-				_shoot(from, t["root"], Elements.COLORS[mon.element])
-			await get_tree().create_timer(0.1).timeout   # écart entre 2 boules
-		await get_tree().create_timer(FLIGHT).timeout    # attend l'impact de la dernière
-
+# UNE attaque du monstre n°index sur les ennemis 'targets' (MonsterData).
+# Attaque de zone = une boule plus grosse vers chaque ennemi.
+func play_attack(index: int, targets: Array, is_zone: bool) -> void:
+	if index >= team_widgets.size():
+		return
+	var w: Dictionary = team_widgets[index]
+	var mon: MonsterData = w["mon"]
+	var root: Control = w["root"]
+	var from: Vector2 = root.get_global_rect().get_center()
+	_hop(root)
+	for ew in enemy_widgets:
+		if ew["mon"] in targets:
+			_shoot(from, ew["root"], Elements.COLORS[mon.element], 60 if is_zone else BALL)
+	await get_tree().create_timer(FLIGHT + 0.05).timeout   # attend l'impact
 func _alive_enemy_widgets() -> Array:
 	var res: Array = []
 	for w in enemy_widgets:
