@@ -8,7 +8,7 @@ func _ready() -> void:
 		"slime_feu":     {"name": "Slime de Feu",     "el": Elements.E.FIRE,    "hp": 300, "atk": 100, "def": 10, "rank": 1, "work": 5, "skill": "charge", "tex": "res://assets/monster/SlimeDeFeu.png"},
 		"slime_eau":     {"name": "Slime d'Eau",      "el": Elements.E.WATER,   "hp": 300, "atk": 100, "def": 10, "rank": 1, "work": 5, "skill": "charge", "tex": "res://assets/monster/SlimeDEau.png"},
 		"slime_terre":   {"name": "Slime de Terre",   "el": Elements.E.EARTH,   "hp": 300, "atk": 100, "def": 10, "rank": 1, "work": 5, "skill": "charge", "tex": "res://assets/monster/SlimeDeTerre.png"},
-		"slime_vent":    {"name": "Slime de Vent",    "el": Elements.E.WIND,    "hp": 300, "atk": 100, "def": 10, "rank": 1, "work": 5, "skill": "charge", "tex": "res://assets/monster/SlimeDAir.png"},
+		"slime_vent":    {"name": "Slime de Vent",    "el": Elements.E.WIND,    "hp": 300, "atk": 100, "def": 10, "rank": 1, "work": 5, "skill": "charge", "tex": "res://assets/monster/SlimeDeVent.png"},
 		"slime_lumiere": {"name": "Slime de Lumière", "el": Elements.E.LIGHT,   "hp": 300, "atk": 100, "def": 10, "rank": 1, "work": 5, "skill": "charge", "tex": "res://assets/monster/SlimeDeLumiere.png"},
 		"slime_tenebre": {"name": "Slime de Ténèbre", "el": Elements.E.DARK,    "hp": 300, "atk": 100, "def": 10, "rank": 1, "work": 5, "skill": "charge", "tex": "res://assets/monster/SlimeDesTenebres.png"},
 		"slime_incubateur":         {"name": "Slime Incubateur", "el": Elements.E.NEUTRAL, "hp": 300, "atk": 50,  "def": 20, "rank": 1, "work": 5, "skill": "charge", "tex": "res://assets/monster/SlimeIncubateur.png"},

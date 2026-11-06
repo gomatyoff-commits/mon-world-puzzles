@@ -172,7 +172,7 @@ func refresh_all() -> void:
 	team_hp_bar.get_theme_stylebox("fill").bg_color = col
 	
 	if wave_label:
-		wave_label.text = ("Vague %d / %d" % [GameManager.current_wave, GameManager.total_waves]) if GameManager.game_mode == "event" else ""
+		wave_label.text = ("Vague %d / %d" % [GameManager.current_wave, GameManager.total_waves]) if GameManager.total_waves > 1 else ""
 	
 func show_combo(count: int) -> void:
 	if count <= 0:

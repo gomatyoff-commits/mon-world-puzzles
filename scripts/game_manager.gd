@@ -57,18 +57,19 @@ func _ready() -> void:
 func _build_collection() -> void:
 	collection = [ MonsterDB.create("slime"), MonsterDB.create("slime"), MonsterDB.create("slime") ]
 
-# --- MODE HISTOIRE ---
+# --- MODE HISTOIRE (par vagues, monstres tirés au hasard dans LevelDB) ---
 func start_level(level: int) -> void:
 	game_mode = "story"
 	current_level = level
-	total_waves = 1
+	total_waves = LevelDB.wave_count(level)
 	current_wave = 1
+	reset_battle_loot()
 	team_hp = team_max_hp()
-	enemies = _build_level_enemies(level)
+	enemies = _build_level_wave(level, 1)
 
-func _build_level_enemies(level: int) -> Array[MonsterData]:
+func _build_level_wave(level: int, wave: int) -> Array[MonsterData]:
 	var list: Array[MonsterData] = []
-	for e in LevelDB.get_enemies(level):
+	for e in LevelDB.roll_wave(level, wave):
 		list.append(MonsterDB.create(e["id"], int(e.get("lv", 1)), int(e.get("turns", 1))))
 		discover(e["id"])
 	return list
@@ -78,6 +79,7 @@ func start_event() -> void:
 	game_mode = "event"
 	total_waves = 3
 	current_wave = 1
+	reset_battle_loot()
 	team_hp = team_max_hp()
 	enemies = _build_event_wave(1)
 
@@ -92,7 +94,7 @@ func next_wave() -> bool:
 	if current_wave >= total_waves:
 		return false
 	current_wave += 1
-	enemies = _build_event_wave(current_wave) if game_mode == "event" else _build_level_enemies(current_level)
+	enemies = _build_event_wave(current_wave) if game_mode == "event" else _build_level_wave(current_level, current_wave)
 	return true
 
 # --- LOOT (via LootDB) ---
@@ -103,23 +105,44 @@ func add_material(id: String, count := 1) -> void:
 func coin_drop(mon: MonsterData) -> int:
 	return (500 * (mon.rank + 1)) + (mon.level * (mon.rank + 1))
 
-func event_loot() -> String:
-	var nb_slimes := 0
-	for w in range(1, total_waves + 1):
-		nb_slimes += w
-	var result: Dictionary = LootDB.roll("event_slime", nb_slimes)
+# XP donnée par un ennemi vaincu : 100 × (rang + 1), +1 % par niveau de l'ennemi
+func xp_drop(mon: MonsterData) -> int:
+	return int(round(100.0 * (mon.rank + 1) * (1.0 + mon.level / 100.0)))
 
-	var parts: Array[String] = []
-	for id in result["materials"].keys():
-		add_material(id, int(result["materials"][id]))
-		parts.append("%dx %s" % [result["materials"][id], LootDB.MATERIALS[id]])
-	for mon_id in result["monsters"]:
-		collection.append(MonsterDB.create(mon_id))   # rang 0 garanti (défini dans la lib)
-		parts.append(MonsterDB.display_name(mon_id))
+# Butin gagné pendant le combat en cours (pour l'écran de fin)
+var battle_loot := { "materials": {}, "monsters": [] }
+
+func reset_battle_loot() -> void:
+	battle_loot = { "materials": {}, "monsters": [] }
+
+# Appelé quand un ennemi meurt : butin selon SON espèce (LootDB.DROPS).
+# Le butin est ajouté tout de suite à l'inventaire, comme les pièces.
+func on_enemy_killed(mon: MonsterData) -> void:
+	var drop: Dictionary = LootDB.roll_monster(mon.species_id)
+	for id in drop["materials"].keys():
+		var n := int(drop["materials"][id])
+		add_material(id, n)
+		battle_loot["materials"][id] = int(battle_loot["materials"].get(id, 0)) + n
+	for mon_id in drop["monsters"]:
+		if not MonsterDB.has(mon_id):
+			continue
+		collection.append(MonsterDB.create(mon_id))
 		discover(mon_id)
+		battle_loot["monsters"].append(mon_id)
 
-	save_game()
-	return "🎁 " + " + ".join(parts) if parts.size() > 0 else "Aucun butin cette fois..."
+# Texte du butin pour l'écran de fin ("" si rien)
+func battle_loot_text() -> String:
+	var parts: Array[String] = []
+	for id in battle_loot["materials"].keys():
+		parts.append("%dx %s" % [battle_loot["materials"][id], LootDB.MATERIALS[id]])
+	var recruits := {}
+	for mon_id in battle_loot["monsters"]:
+		recruits[mon_id] = int(recruits.get(mon_id, 0)) + 1
+	for mon_id in recruits.keys():
+		parts.append("%dx %s" % [recruits[mon_id], MonsterDB.display_name(mon_id)])
+	if parts.is_empty():
+		return ""
+	return "🎁 " + "\n🎁 ".join(parts)
 
 # --- PV équipe ---
 func team_max_hp() -> int:
@@ -138,9 +161,15 @@ func team_defense() -> int:
 		total += m.defense
 	return int(total / team.size())
 
-func gain_team_xp(amount: int) -> void:
-	for m in team: m.add_xp(amount)
+# L'XP est PARTAGÉE entre les membres de l'équipe (arrondi au supérieur).
+# Renvoie l'XP reçue par chaque monstre.
+func gain_team_xp(amount: int) -> int:
+	if team.is_empty() or amount <= 0:
+		return 0
+	var share := ceili(float(amount) / team.size())
+	for m in team: m.add_xp(share)
 	save_game()
+	return share
 
 # --- FUSION ---
 func fuse(base: MonsterData, fodder: Array) -> int:

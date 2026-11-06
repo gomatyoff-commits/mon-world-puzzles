@@ -20,6 +20,7 @@ var move_timer := 0.0
 var is_resolving := false
 var battle_over := false
 var coins_earned := 0
+var xp_earned := 0      # XP cumulée des ennemis vaincus (donnée à la fin)
 
 func _ready() -> void:
 	_build_grid()
@@ -395,6 +396,8 @@ func _hit(target: MonsterData, dealt: int) -> void:
 		var c := GameManager.coin_drop(target)
 		GameManager.coins += c
 		coins_earned += c
+		xp_earned += GameManager.xp_drop(target)
+		GameManager.on_enemy_killed(target)   # butin selon le monstre
 	if DEBUG:
 		print(target.mon_name, " prend ", dealt, " dégâts (PV: ", target.hp, ")")
 
@@ -414,16 +417,8 @@ func _end_player_turn() -> void:
 			return                      # le combat continue (vague suivante)
 
 		# combat terminé
-		var extra := ""
-		if GameManager.game_mode == "event":
-			GameManager.gain_team_xp(100)
-			extra = GameManager.event_loot()
-		else:
-			var reward := GameManager.current_level * 200
-			GameManager.gain_team_xp(reward)
-			extra = "+%d XP" % reward
-		if coins_earned > 0:
-			extra += "\n🪙 +%d pièces" % coins_earned
+		var share := GameManager.gain_team_xp(xp_earned)   # XP partagée entre l'équipe
+		var extra := _xp_text(share) + _loot_text()
 		GameManager.save_game()
 
 		ui.refresh_all()
@@ -443,7 +438,10 @@ func _end_player_turn() -> void:
 	ui.refresh_all()
 	# défaite ?
 	if GameManager.team_total_hp() <= 0:
-		ui.show_result(false)
+		var share := GameManager.gain_team_xp(xp_earned)   # on garde l'XP des ennemis déjà vaincus
+		GameManager.save_game()   # ... ainsi que pièces et butin
+		var lost := (_xp_text(share) + _loot_text()) if xp_earned > 0 else ""
+		ui.show_result(false, lost)
 		battle_over = true
 
 func _enemy_attack(e: MonsterData) -> void:
@@ -485,3 +483,17 @@ func _use_skill(i: int) -> void:
 	# Ennemis tous morts -> vague suivante / victoire (sans tour ennemi)
 	if _first_alive_enemy() == null:
 		_end_player_turn()
+
+# Pièces + butin gagnés pendant ce combat (pour l'écran de fin)
+func _loot_text() -> String:
+	var t := ""
+	if coins_earned > 0:
+		t += "\n🪙 +%d pièces" % coins_earned
+	var loot := GameManager.battle_loot_text()
+	if loot != "":
+		t += "\n" + loot
+	return t
+
+# "+1272 XP (424 par monstre)"
+func _xp_text(share: int) -> String:
+	return "+%d XP (%d par monstre)" % [xp_earned, share]
